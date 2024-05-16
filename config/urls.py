@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/v1/', include('club.urls')),
     path('api/v1/', include('team.urls')),
     path('api/v1/', include('competition.urls')),
+    path('api/v1/', include('custom_admin.urls')),
 ]
 
 if settings.DEBUG:
