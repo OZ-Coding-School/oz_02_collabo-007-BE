@@ -43,6 +43,7 @@ CUSTOM_APPS = [
     'tier.apps.TierConfig',
     'image_url.apps.ImageUrlConfig',
     'matchtype.apps.MatchTypeConfig',
+    'custom_admin.apps.CustomAdminConfig',
 ]
 
 
