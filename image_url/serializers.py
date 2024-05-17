@@ -3,10 +3,16 @@ from .models import ImageUrl
 
 
 class ImageUrlSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = ImageUrl
         fields = ['image_url']
+        
+    def get_image_url(self, obj):
+        if obj.image_url:
+            return obj.image_url.image_url
+        return None
         
         
 

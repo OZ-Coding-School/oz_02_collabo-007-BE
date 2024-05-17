@@ -1,7 +1,7 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model , authenticate
 from rest_framework import serializers
-from .models import CustomUser, Club
+from .models import Club
 from image_url.models import ImageUrl
 from image_url.utils import S3ImageUploader
 from image_url.serializers import ImageUrlSerializer
@@ -15,7 +15,7 @@ User = get_user_model()
 class CreateUserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     club = serializers.PrimaryKeyRelatedField(queryset=Club.objects.all(), required=False)
-    image_file = serializers.ImageField(write_only=True, required=False)  # 이미지 필드 추가
+    image_file = serializers.ImageField(write_only=True, required=False, allow_null=True)  # 이미지 필드 추가
     image_url = serializers.SerializerMethodField(read_only=True)  # 읽기 전용 이미지 URL 필드 추가
     
     class Meta:
@@ -48,7 +48,7 @@ class CreateUserSerializer(serializers.ModelSerializer):
         user.save()  # 변경 사항 저장
 
             
-        return user # zz
+        return user
 
 
 # 로그인 부분 serializer ##
@@ -90,14 +90,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 # 회원정보 수정 serializer
 class UpdateMyProfileSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=False)
-    club = serializers.PrimaryKeyRelatedField(queryset=Club.objects.all(), required=False)
-    image_file = serializers.ImageField(write_only=True, required=False)
-    image_url = serializers.SerializerMethodField(read_only=True)  # 읽기 전용 이미지 URL 필드 추가
+    club = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    image_file = serializers.ImageField(write_only=True, required=False, allow_null=True)
+    image_url = serializers.SerializerMethodField(read_only=True)
+    remove_image = serializers.BooleanField(write_only=True, required=False, default=False) # 기존 이미지 삭제를 위한 필드 정의!
 
     class Meta:
         model = User
-        fields = ('password', 'username', 'birth', 'gender', 'club', 'image_file', 'image_url')
+        fields = ('username', 'birth', 'gender', 'club', 'image_file', 'image_url', 'remove_image')
 
     def get_image_url(self, obj):
         if obj.image_url:
@@ -106,37 +106,45 @@ class UpdateMyProfileSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         image_data = validated_data.pop('image_file', None)
-        password = validated_data.pop('password', None)
+        remove_image = validated_data.pop('remove_image', False)
 
         # 사용자 기본 정보 업데이트
         instance.username = validated_data.get('username', instance.username)
         instance.birth = validated_data.get('birth', instance.birth)
         instance.gender = validated_data.get('gender', instance.gender)
-        instance.club = validated_data.get('club', instance.club)
 
-        if password:
-            instance.set_password(password)
 
-        # 빈 이미지 파일이 제공된 경우 (이미지 삭제 요청으로 간주)
-        if image_data == '':
-            if hasattr(instance, 'image_url') and instance.image_url:
-                instance.image_url.delete()  # ImageUrl 인스턴스 삭제
-                instance.image_url = None  # User 모델의 참조 제거
-        # 이미지 파일 정보가 제공되지 않은 경우 (이미지 변경 없음)
-        elif image_data is None:
+        # 클럽 ID 처리
+        club_data = validated_data.pop('club', None)
+        if club_data in ['']:  # 빈 문자열 인 경우
+            instance.club = None
+        else:
+            # club 필드를 다시 Club 객체로 변환해야 할 경우
+            try:
+                club_instance = Club.objects.get(id=club_data)
+                instance.club = club_instance
+            except Club.DoesNotExist:
+                instance.club = None
+
+        # 이미지 파일 처리    
+        if remove_image: # 클라이언트가 이미지 제거를 요청한 경우
+            instance.image_url = None
+            
+        elif image_data is None: # 폼데이터에 이미지 파일 자체가 제공되지 않은 경우
             pass
-        # 유효한 이미지 파일이 제공된 경우
-        elif image_data:
+        
+        else:
+            # 이미지 업로드 로직
             uploader = S3ImageUploader()
             file_url, extension, size = uploader.upload_file(image_data)
-
-            # 기존 이미지가 있으면 업데이트, 없으면 새로 생성
             if hasattr(instance, 'image_url') and instance.image_url:
+                # 기존 이미지 업데이트
                 instance.image_url.image_url = file_url
                 instance.image_url.extension = extension
                 instance.image_url.size = size
                 instance.image_url.save()
             else:
+                # 새 이미지 생성
                 image_instance = ImageUrl.objects.create(
                     image_url=file_url,
                     extension=extension,
@@ -150,16 +158,32 @@ class UpdateMyProfileSerializer(serializers.ModelSerializer):
 
 
 
+# 비밀번호 변경 시리얼라이저
+class ChangePasswordSerializer(serializers.Serializer):
+    prev_password = serializers.CharField(required=True) # 기존 비밀번호
+    changed_password = serializers.CharField(required=True) # 변경 비밀번호
+
+    class Meta:
+        model = User
+        fields = ['password']
+
+
+
 
 
 
 
 # 유저 상세정보 serializer
 class UserInfoSerializer(serializers.ModelSerializer):
-    image_url = ImageUrlSerializer(read_only=True)  # ImageUrl 모델에 대한 시리얼라이저를 사용
+    image_url = serializers.SerializerMethodField()  # image_url을 메서드 필드로 변경
     club = ClubDetailSerializer(read_only=True)
     team = TeamDetailSerializer(read_only=True)
     
     class Meta:
         model = User
         fields = ['id', 'username', 'phone', 'gender', 'birth', 'image_url', 'club', 'team'] # 티어 추가해야함
+
+    def get_image_url(self, obj):
+        if obj.image_url:
+            return obj.image_url.image_url
+        return None

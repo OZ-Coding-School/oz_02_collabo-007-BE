@@ -4,11 +4,16 @@ from users.models import CustomUser
 from image_url.serializers import ImageUrlSerializer
 
 class TeamDetailSerializer(serializers.ModelSerializer):
-    image_url = ImageUrlSerializer(read_only=True)
+    image_url = serializers.SerializerMethodField()
  
     class Meta:
         model = Team
         fields = ['id', 'name', 'description', 'image_url']
+        
+    def get_image_url(self, obj):
+        if obj.image_url:
+            return obj.image_url.image_url
+        return None
     
         
 # *************** club serializer 에서 정의된 부분이기 때문에 중복 코드 방지를 위해 주석처리 진행 ********************************
