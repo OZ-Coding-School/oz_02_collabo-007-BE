@@ -48,7 +48,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, SoftDeleteModel, TimeStampe
     phone = models.CharField(max_length=255, unique=True)
     auth = models.CharField(max_length=255, blank=True, null=True)
     club = models.ForeignKey(Club, on_delete=models.DO_NOTHING, blank=True, null=True) # 사용자가 클럽에 속하지 않아도 되며, 사용자 입력 폼에서도 클럽 필드를 비워둘 수 있음
-    team = models.ForeignKey(Team, on_delete=models.DO_NOTHING, blank=True, null=True) 
+    team = models.ForeignKey(Team, on_delete=models.DO_NOTHING, blank=True, null=True, related_name='users') 
     tier = models.ForeignKey(Tier, on_delete=models.DO_NOTHING, blank=True, null=True)
     is_staff = models.BooleanField(default=False) # 관리자 페이지 접속 가능하게 하는 staff 기능
     is_active = models.BooleanField(default=True) # is_active 활용하여, 계정을 비활성화 가능 (유저 삭제 대신 False)
