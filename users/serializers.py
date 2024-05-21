@@ -193,9 +193,6 @@ class ChangePasswordSerializer(serializers.Serializer):
     changed_password = serializers.CharField(required=True)  # 변경 비밀번호
     
     
-    class Meta:
-        model = User
-        fields = ['password']
         
 
     def validate_changed_password(self, value):

@@ -8,6 +8,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status, parsers
 from rest_framework_simplejwt.views import TokenObtainPairView
+from djangorestframework_camel_case.parser import CamelCaseFormParser, CamelCaseMultiPartParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .serializers import (CreateUserSerializer,
@@ -27,7 +28,7 @@ class CreateUserView(APIView):
     """
     회원가입 API
     """
-    parser_classes = (parsers.MultiPartParser, parsers.FormParser)  
+    parser_classes = (CamelCaseFormParser, CamelCaseMultiPartParser) 
     @swagger_auto_schema(
         operation_summary='유저 회원가입',
         operation_description='회원가입 API',
@@ -186,7 +187,7 @@ class UpdateMyProfileAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
-    parser_classes = (parsers.MultiPartParser, parsers.FormParser)
+    parser_classes = (CamelCaseFormParser, CamelCaseMultiPartParser)
     @swagger_auto_schema(
         operation_summary='내 프로필 편집',
         operation_description='내 프로필을 업데이트하는 API',
@@ -219,7 +220,7 @@ class ChangePasswordView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
-    parser_classes = (parsers.MultiPartParser, parsers.FormParser)
+    parser_classes = (CamelCaseFormParser, CamelCaseMultiPartParser)
     @swagger_auto_schema(
         operation_summary='유저 비밀번호 변경',
         operation_description='유저 비밀번호 변경 API',
@@ -233,6 +234,7 @@ class ChangePasswordView(APIView):
     def put(self, request, *args, **kwargs):
         user = request.user
         serializer = ChangePasswordSerializer(data=request.data)
+        print(request.data)
      
         if serializer.is_valid():
             # 기존 비밀번호
