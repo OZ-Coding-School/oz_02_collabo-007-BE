@@ -192,14 +192,6 @@ class ChangePasswordSerializer(serializers.Serializer):
     prev_password = serializers.CharField(required=True)  # 기존 비밀번호
     changed_password = serializers.CharField(required=True)  # 변경 비밀번호
     
-    
-        
-
-    def validate_changed_password(self, value):
-        # 비밀번호가 숫자로만 구성되어 있는지 확인
-        if not value.isdigit():
-            raise serializers.ValidationError("비밀번호는 숫자로만 구성되어야 합니다.")
-        return value
 
 
 
