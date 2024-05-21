@@ -22,6 +22,13 @@ class CreateUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ('phone', 'password', 'username', 'birth', 'gender', 'club', 'image_file', 'image_url')
         
+    def validate_phone(self, value):
+        # 숫자로만 구성되어 있는지 확인
+        if not value.isdigit():
+            raise serializers.ValidationError("휴대폰 번호는 숫자만 포함해야 합니다.")
+        return value
+    
+        
     def create(self, validated_data):
         image_data = validated_data.pop('image_file', None)
         user = User.objects.create_user(
@@ -49,6 +56,28 @@ class CreateUserSerializer(serializers.ModelSerializer):
 
             
         return user
+    
+    
+    
+    
+# 휴대폰 번호 중복 체크 serializer
+
+class PhoneCheckSerializer(serializers.Serializer):
+    phone = serializers.CharField()
+    
+    def validate_phone(self, value):
+        # 숫자로만 구성되어 있는지 확인
+        if not value.isdigit():
+            raise serializers.ValidationError("휴대폰 번호는 숫자만 포함해야 합니다.")
+        
+        # 이미 사용 중인지 확인
+        if User.objects.filter(phone=value).exists():
+            raise serializers.ValidationError("이미 사용 중인 휴대폰 번호입니다.")
+        
+        return value
+
+
+
 
 
 # 로그인 부분 serializer ##
@@ -160,12 +189,20 @@ class UpdateMyProfileSerializer(serializers.ModelSerializer):
 
 # 비밀번호 변경 시리얼라이저
 class ChangePasswordSerializer(serializers.Serializer):
-    prev_password = serializers.CharField(required=True) # 기존 비밀번호
-    changed_password = serializers.CharField(required=True) # 변경 비밀번호
-
+    prev_password = serializers.CharField(required=True)  # 기존 비밀번호
+    changed_password = serializers.CharField(required=True)  # 변경 비밀번호
+    
+    
     class Meta:
         model = User
         fields = ['password']
+        
+
+    def validate_changed_password(self, value):
+        # 비밀번호가 숫자로만 구성되어 있는지 확인
+        if not value.isdigit():
+            raise serializers.ValidationError("비밀번호는 숫자로만 구성되어야 합니다.")
+        return value
 
 
 

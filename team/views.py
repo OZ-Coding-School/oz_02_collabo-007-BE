@@ -4,11 +4,16 @@ from .models import Team
 from users.models import CustomUser
 from .serializers import TeamDetailSerializer
 from club.serializers import UserWithTeamInfoSerializer
+from drf_yasg.utils import swagger_auto_schema
 
 class TeamDetailView(APIView):
     """
     팀 상세 정보 조회하는 API
     """
+    @swagger_auto_schema(
+        operation_summary='팀 상세 정보 조회',
+        operation_description='팀 상세 정보 조회하는 API',
+    )
     def get(self, request, pk):
         try:
             team = Team.objects.get(pk=pk)
@@ -34,6 +39,11 @@ class TeamUsersListView(APIView):
     """
     팀에 속한 유저 정보를 모두 나타내는 API
     """
+    @swagger_auto_schema(
+        operation_summary='팀에 속한 유저 정보 조회',
+        operation_description='팀에 속한 유저 정보를 모두 나타내는 API',
+    )
+    
     def get(self, request, pk):
         try:
             # 클럽 객체 가져오기

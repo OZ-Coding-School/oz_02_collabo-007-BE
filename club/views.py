@@ -6,6 +6,7 @@ from .models import Club
 from users.models import CustomUser
 from team.models import Team
 from coach.models import Coach
+from drf_yasg.utils import swagger_auto_schema
 from .serializers import (
                     ClubListSerializer,
                     ClubDetailSerializer,
@@ -20,6 +21,11 @@ class ClubListView(APIView):
     """
     클럽 목록 조회 API (회원가입 때 이용)
     """
+    @swagger_auto_schema(
+        operation_summary='클럽 목록 조회 (회원가입 때 사용)',
+        operation_description='클럽 목록 조회 API (회원가입 때 이용)',
+    )
+    
     def get(self, request):
         try:
             # is_deleted=False를 사용하여 삭제되지 않은 클럽만 조회
@@ -47,6 +53,11 @@ class ClubDetailView(APIView):
     """
     클럽 상세 정보 조회하는 API
     """
+    @swagger_auto_schema(
+        operation_summary='클럽 상세 정보 조회',
+        operation_description='클럽 상세 정보 조회하는 API',
+    )
+    
     def get(self, request, pk):
         try:
             club = Club.objects.get(pk=pk)
@@ -91,6 +102,11 @@ class ClubUsersListView(APIView):
     """
     클럽에 속한 유저 정보를 모두 나타내는 API
     """
+    @swagger_auto_schema(
+        operation_summary='클럽에 속한 유저 정보 조회',
+        operation_description='클럽에 속한 유저 정보를 모두 나타내는 API',
+    )
+    
     def get(self, request, pk):
         try:
             # 클럽 객체 가져오기

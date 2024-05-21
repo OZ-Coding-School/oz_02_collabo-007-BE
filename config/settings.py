@@ -77,6 +77,23 @@ MIDDLEWARE = [
     'djangorestframework_camel_case.middleware.CamelCaseMiddleWare',
 ]
 
+
+
+
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    },
+    'USE_SESSION_AUTH': False,
+}
+
+
+
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
@@ -165,8 +182,10 @@ REST_FRAMEWORK = {
     ),
      'DEFAULT_PARSER_CLASSES': (
         'djangorestframework_camel_case.parser.CamelCaseFormParser',
-        'djangorestframework_camel_case.parser.CamelCaseMultiPartParser',
-        'djangorestframework_camel_case.parser.CamelCaseJSONParser', # 카멜 케이스 변환 파서
+        'djangorestframework_camel_case.parser.CamelCaseMultiPartParser', # 카멜 케이스 변환 파서
+        'djangorestframework_camel_case.parser.CamelCaseJSONParser',
+        'rest_framework.parsers.MultiPartParser',
+        'rest_framework.parsers.FormParser',
     ),
     'DEFAULT_RENDERER_CLASSES': (
         'djangorestframework_camel_case.render.CamelCaseJSONRenderer', # 최상위로 올려야 카멜케이스로 변경 가능
