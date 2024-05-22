@@ -103,7 +103,7 @@ class LoginView(TokenObtainPairView):
     """
     유저 로그인 API
     """
-    parser_classes = (parsers.MultiPartParser, parsers.FormParser)
+    parser_classes = (CamelCaseFormParser, CamelCaseMultiPartParser)
     @swagger_auto_schema(
         operation_summary='유저 로그인',
         operation_description='유저 로그인 API',
@@ -199,13 +199,14 @@ class UpdateMyProfileAPIView(APIView):
     )
 
     def put(self, request, format=None):
-        user = request.user  # Use the currently authenticated user's information.
-        serializer = UpdateMyProfileSerializer(user, data=request.data, partial=True)  # 부분 업데이트를 위해 partial=True를 추가합니다.
+        user = request.user
+        serializer = UpdateMyProfileSerializer(user, data=request.data, partial=True)  # 부분 업데이트를 위해 partial=True를 추가
+        print(request.data)
         if serializer.is_valid():
             serializer.save()
-            # 업데이트가 성공적으로 완료되면, serializer의 데이터와 함께 200 OK 응답을 반환합니다.
+            # 업데이트가 성공적으로 완료되면, serializer의 데이터와 함께 200 OK 응답을 반환
             return Response(serializer.data, status=status.HTTP_200_OK)
-        # 유효성 검사에 실패한 경우, 오류 메시지와 함께 400 Bad Request 응답을 반환합니다.
+        # 유효성 검사에 실패한 경우, 오류 메시지와 함께 400 Bad Request 응답을 반환
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -220,7 +221,7 @@ class ChangePasswordView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
-    parser_classes = (CamelCaseFormParser, CamelCaseMultiPartParser)
+    
     @swagger_auto_schema(
         operation_summary='유저 비밀번호 변경',
         operation_description='유저 비밀번호 변경 API',
@@ -234,7 +235,7 @@ class ChangePasswordView(APIView):
     def put(self, request, *args, **kwargs):
         user = request.user
         serializer = ChangePasswordSerializer(data=request.data)
-        print(request.data)
+        
      
         if serializer.is_valid():
             # 기존 비밀번호
@@ -245,8 +246,9 @@ class ChangePasswordView(APIView):
             user.set_password(serializer.validated_data['changed_password'])
             user.save()
             return Response({'message': '비밀번호가 변경되었습니다.'}, status=status.HTTP_200_OK)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            print(serializer.errors)  # 시리얼라이저 오류 출력
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
