@@ -51,8 +51,6 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
     def update(self, instance, validated_data):
-        print(validated_data)
-        print(instance)
         image_data = validated_data.get('image_file')
         delete_image = validated_data.get('delete_image', False)
 

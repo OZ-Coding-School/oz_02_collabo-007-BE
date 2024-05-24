@@ -1,5 +1,5 @@
 from club.models import Club
-from custom_admin.club.serializers import ClubListSerializer, ClubSerializer, TeamSerializer
+from custom_admin.club.serializers import ClubListSerializer, ClubSerializer, MemberSerializer, TeamSerializer, User
 from custom_admin.pagination import StandardResultsSetPagination
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets, exceptions, mixins, status
@@ -119,3 +119,38 @@ class TeamViewSet(mixins.ListModelMixin,
             raise exceptions.NotFound('Club not found')
         request.data['club'] = club.pk
         return super().create(request, *args, **kwargs)
+
+
+class MemberViewSet(mixins.ListModelMixin,
+                    mixins.UpdateModelMixin,
+                    viewsets.GenericViewSet):
+    serializer_class = MemberSerializer
+
+    @swagger_auto_schema(
+        operation_summary='클럽 회원 목록 조회',
+        operation_description='클럽 회원 목록을 조회합니다.',
+        responses={
+            200: MemberSerializer(many=True),
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    def get_queryset(self):
+        return User.objects.filter(club=self.kwargs['club_pk'])
+
+    @swagger_auto_schema(
+        operation_summary='클럽 회원 정보 수정',
+        operation_description='클럽 회원 정보를 수정합니다.',
+        responses={
+            200: MemberSerializer,
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            400: 'Bad Request'
+        }
+    )
+    def update(self, request, *args, **kwargs):
+        user = User.objects.get(pk=self.kwargs['pk'])
+        if not user:
+            raise exceptions.NotFound('User not found')
+        return super().update(request, *args, **kwargs)
