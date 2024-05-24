@@ -77,7 +77,7 @@ class PhoneCheckView(APIView):
         request_body=PhoneCheckSerializer,
         responses={
             200: openapi.Response('사용 가능한 휴대폰 번호 입니다'),
-            400: openapi.Response('유효성 검사 실패', PhoneCheckSerializer)
+            400: openapi.Response('사용 불가능한 휴대폰 번호 입니다', PhoneCheckSerializer)
         }
     )
     def post(self, request, *args, **kwargs):
@@ -90,7 +90,7 @@ class PhoneCheckView(APIView):
 
         return Response({
             'code': 400,
-            'message': '유효성 검사 실패',
+            'message': '사용 불가능한 휴대폰 번호 입니다',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
 

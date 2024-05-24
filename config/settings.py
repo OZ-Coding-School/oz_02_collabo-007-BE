@@ -43,13 +43,17 @@ CUSTOM_APPS = [
     'tier.apps.TierConfig',
     'image_url.apps.ImageUrlConfig',
     'matchtype.apps.MatchTypeConfig',
+    'competition.apps.CompetitionConfig',
+    'applicant.apps.ApplicantConfig',
+    'applicant_info.apps.ApplicantInfoConfig',
+    'participant.apps.ParticipantConfig',
+    'participant_info.apps.ParticipantInfoConfig'
     'custom_admin.apps.CustomAdminConfig',
 ]
 
 
 SYSTEM_APPS = [
     'corsheaders',
-    'competition.apps.CompetitionConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -181,7 +185,10 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
-     'DEFAULT_PARSER_CLASSES': (
+    # 'DEFAULT_PERMISSION_CLASSES': (
+    #     'rest_framework.permissions.IsAuthenticated'
+    # ),
+    'DEFAULT_PARSER_CLASSES': (
         'djangorestframework_camel_case.parser.CamelCaseFormParser',
         'djangorestframework_camel_case.parser.CamelCaseMultiPartParser', # 카멜 케이스 변환 파서
         'djangorestframework_camel_case.parser.CamelCaseJSONParser',
@@ -193,8 +200,9 @@ REST_FRAMEWORK = {
         'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer', # 최상위로 올려야 카멜케이스 변경 가능
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
-    ),
+    ),    
 }
+
 
 SIMPLE_JWT = {
     'TOKEN_OBTAIN_SERIALIZER': 'users.serializers.CustomTokenObtainPairSerializer',
