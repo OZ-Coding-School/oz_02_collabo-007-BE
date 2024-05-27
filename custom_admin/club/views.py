@@ -101,6 +101,10 @@ class TeamViewSet(mixins.ListModelMixin,
         }
     )
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset or a mock queryset during schema generation
+            return Team.objects.none()
+
         return Team.objects.filter(club=self.kwargs['club_pk'])
 
     @swagger_auto_schema(
@@ -137,6 +141,9 @@ class MemberViewSet(mixins.ListModelMixin,
         }
     )
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return User.objects.none()
+
         return User.objects.filter(club=self.kwargs['club_pk'])
 
     @swagger_auto_schema(
