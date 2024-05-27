@@ -11,7 +11,7 @@ class MatchType(TimeStampedModel):
     
     TYPE_CHOICES = (
         ('single', '단식'),
-        ('duo', '복식'),
+        ('double', '복식'),
         ('team', '팀')
     )
     id = models.AutoField(primary_key=True)

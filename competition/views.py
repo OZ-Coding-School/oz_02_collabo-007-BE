@@ -25,7 +25,7 @@ class CompetitionListView(APIView):
     permission_classes = [AllowAny]
     
     def get(self, request):
-        # 쿼리 파라미터로부터 gender와 type을 받아옵니다.
+        # 쿼리 파라미터로부터 gender와 type 가져옴
         gender = request.query_params.get('gender')
         type = request.query_params.get('match_type')
 
@@ -76,8 +76,8 @@ class CompetitionApplyView(APIView):
         
         applicant = request.user # 신청자 = 로그인한 유저
         # 신청자 중복 신청 확인
-        # if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
-        #     return Response({'error': '해당 대회에 이미 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+        if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
+            return Response({'error': '해당 대회에 이미 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
                         
         
         
@@ -88,9 +88,14 @@ class CompetitionApplyView(APIView):
         
         
         ### 복식 신청
-        if competition.match_type.type == 'duo':
+        if competition.match_type.type == 'double':
             # 파트너 생성
             partner_id = request.data.get('partner_id')  #신청 폼에서 제공된 파트너의 ID
+            
+            # 파트너 선택 확인
+            if not partner_id:
+                    return Response({'error': '파트너가 입력되지 않았습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+            
             partner = CustomUser.objects.get(id=partner_id) # 파트너 인스턴스 생성
             
             # 혼성 확인
@@ -109,14 +114,14 @@ class CompetitionApplyView(APIView):
                 return Response({'error': '파트너 부가 달라 신청 불가능합니다.'}, status=status.HTTP_400_BAD_REQUEST)
             
             
-            # # 파트너 중복 신청 확인
-            # elif partner_id and Applicant.objects.filter(applicant_info__competition=competition, user_id=partner_id).exists():
-            #     return Response({'error': '선택하신 파트너는 이미 해당 대회를 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+            # 파트너 중복 신청 확인
+            elif partner_id and Applicant.objects.filter(applicant_info__competition=competition, user_id=partner_id).exists():
+                return Response({'error': '선택하신 파트너는 이미 해당 대회를 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
             
             return self.handle_doubles(request, competition, applicant, partner)
         
         else:
-            return Response({'error': '대회신청 정상적으로 되지 않았습니다. 신청정보를 확인해주세요.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': '대회신청이 정상적으로 되지 않았습니다. 신청정보를 확인해주세요.'}, status=status.HTTP_400_BAD_REQUEST)
         
         
         
@@ -125,12 +130,20 @@ class CompetitionApplyView(APIView):
     
     ### 단식 신청 처리 로직
     def handle_singles(self, request, competition, applicant):
+        
+        # 대기 처리
         current_applicants_count = ApplicantInfo.objects.filter(competition=competition).count()
-        is_waiting = current_applicants_count >= competition.max_participants
-                
+        max_participants = competition.max_participants
+        waiting_number = None
+        
+        if current_applicants_count >= max_participants:
+            max_waiting_number = ApplicantInfo.objects.filter(competition=competition, waiting_number__isnull=False).count()
+            waiting_number = max_waiting_number + 1
+        
+        # applicant_info 저장        
         applicant_info_data = {
                     'competition': competition.id,
-                    'is_waiting': is_waiting,
+                    'waiting_number': waiting_number,
                     'expired_date': now() + timedelta(days=competition.deposit_date)
             }
         
@@ -140,14 +153,16 @@ class CompetitionApplyView(APIView):
         else:
                 return Response(ApplicantInfoSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
+        
+        # applicant 저장
         expired_date = applicant_info_data['expired_date']
         applicant_data = {'user': applicant.id, 'applicant_info': applicant_info.id}
         applicant_serializer = ApplicantSerializer(data=applicant_data)
         if applicant_serializer.is_valid():
             applicant_serializer.save()
             
-            is_waiting = applicant_info_data['is_waiting'] # 대기여부 확인
-            applicant_info_status = '대기신청 완료' if is_waiting else '신청 완료'
+            # 대기/정상 신청 응답
+            applicant_info_status = '대기신청 완료' if waiting_number else '신청 완료'
             competition_serializer = CompetitionApplySerializer(competition)
             response_data = {
                 'status': f'{applicant_info_status}',
@@ -169,13 +184,18 @@ class CompetitionApplyView(APIView):
     def handle_doubles(self, request, competition, applicant, partner):
         with transaction.atomic(): # 2개 신청 동시 처리
             
-            # 해당 대회 신청된 참가정보 확인 후 대기여부 판별
+            #대기 처리
             current_applicants_count = ApplicantInfo.objects.filter(competition=competition).count()
-            is_waiting = current_applicants_count >= competition.max_participants
+            max_participants = competition.max_participants
+            waiting_number = None
+            
+            if current_applicants_count >= max_participants:
+                max_waiting_number = ApplicantInfo.objects.filter(competition=competition, waiting_number__isnull=False).count()
+                waiting_number = max_waiting_number + 1
             
             applicant_info_data = {
                     'competition': competition.id,
-                    'is_waiting': is_waiting,
+                    'waiting_number': waiting_number,
                     'expired_date': now() + timedelta(days=competition.deposit_date)
             }
             serializer = ApplicantInfoSerializer(data=applicant_info_data)
@@ -195,8 +215,7 @@ class CompetitionApplyView(APIView):
                 saved_applicant = applicant_serializer.save()
                 saved_applicants.append(saved_applicant)
                 
-            is_waiting = applicant_info_data['is_waiting'] # 대기여부 확인
-            applicant_info_status = '대기신청 완료' if is_waiting else '신청 완료'
+            applicant_info_status = '대기신청 완료' if waiting_number else '신청 완료'
             competition_serializer = CompetitionApplySerializer(competition)
             response_data = {
                 'status': f'{applicant_info_status}',

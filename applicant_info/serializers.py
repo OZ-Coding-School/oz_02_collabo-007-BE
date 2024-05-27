@@ -8,4 +8,4 @@ class ApplicantInfoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ApplicantInfo
-        fields = ['id', 'competition','expired_date', 'applicants', 'is_waiting']
+        fields = ['id', 'competition','expired_date', 'applicants', 'waiting_number']
