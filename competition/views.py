@@ -16,8 +16,8 @@ from .serializers import CompetitionListSerializer, CompetitionDetailInfoSeriali
 from applicant_info.serializers import ApplicantInfoSerializer
 from applicant.serializers import ApplicantSerializer
 
- 
- ## 대회 리스트
+
+## 대회 리스트
 class CompetitionListView(APIView):
     """
     대회 리스트
@@ -136,17 +136,17 @@ class CompetitionApplyView(APIView):
         max_participants = competition.max_participants
         waiting_number = None
         
+        # 대기자 처리 
         if current_applicants_count >= max_participants:
             max_waiting_number = ApplicantInfo.objects.filter(competition=competition, waiting_number__isnull=False).count()
             waiting_number = max_waiting_number + 1
         
-        # applicant_info 저장        
+        # applicant_info 저장       
         applicant_info_data = {
                     'competition': competition.id,
                     'waiting_number': waiting_number,
                     'expired_date': now() + timedelta(days=competition.deposit_date)
             }
-        
         serializer = ApplicantInfoSerializer(data=applicant_info_data)
         if serializer.is_valid():
             applicant_info = serializer.save() 
@@ -159,9 +159,9 @@ class CompetitionApplyView(APIView):
         applicant_data = {'user': applicant.id, 'applicant_info': applicant_info.id}
         applicant_serializer = ApplicantSerializer(data=applicant_data)
         if applicant_serializer.is_valid():
-            applicant_serializer.save()
+            applicant_serializer.save()  # 신청자 생성
             
-            # 대기/정상 신청 응답
+            # 대회신청 / 대기신청 응답
             applicant_info_status = '대기신청 완료' if waiting_number else '신청 완료'
             competition_serializer = CompetitionApplySerializer(competition)
             response_data = {
@@ -184,15 +184,16 @@ class CompetitionApplyView(APIView):
     def handle_doubles(self, request, competition, applicant, partner):
         with transaction.atomic(): # 2개 신청 동시 처리
             
-            #대기 처리
             current_applicants_count = ApplicantInfo.objects.filter(competition=competition).count()
             max_participants = competition.max_participants
             waiting_number = None
             
+            # 대기자 처리
             if current_applicants_count >= max_participants:
                 max_waiting_number = ApplicantInfo.objects.filter(competition=competition, waiting_number__isnull=False).count()
                 waiting_number = max_waiting_number + 1
             
+            # applicant_info 저장 
             applicant_info_data = {
                     'competition': competition.id,
                     'waiting_number': waiting_number,
@@ -212,20 +213,21 @@ class CompetitionApplyView(APIView):
                 applicant_serializer = ApplicantSerializer(data=applicant_data)
                 if not applicant_serializer.is_valid():
                     return Response(applicant_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                saved_applicant = applicant_serializer.save()
-                saved_applicants.append(saved_applicant)
-                
+                saved_applicant = applicant_serializer.save() # 신청자 생성
+                saved_applicants.append(saved_applicant) # 신청자 리스트 생성(복식 경우 2명의 신청자 return)
+            
+            # 대회신청 / 대기신청 응답    
             applicant_info_status = '대기신청 완료' if waiting_number else '신청 완료'
             competition_serializer = CompetitionApplySerializer(competition)
             response_data = {
                 'status': f'{applicant_info_status}',
                 'applicant_info': {
-                    'first_appicant': {
-                        'appliant': saved_applicants[0].user.username,
+                    'first_applicant': {
+                        'applicant': saved_applicants[0].user.username,
                         'phone': saved_applicants[0].user.phone
                         },
-                    'second_appicant': {
-                        'appliant': saved_applicants[1].user.username,
+                    'second_applicant': {
+                        'applicant': saved_applicants[1].user.username,
                         'phone': saved_applicants[1].user.phone
                         }
                     },

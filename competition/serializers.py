@@ -95,15 +95,25 @@ class CompetitionDetailInfoSerializer(serializers.ModelSerializer):
         current_applicants_count = obj.applicants.count()
         is_waiting = current_applicants_count >= obj.max_participants
         
-        
-        if obj.status == 'before' and not user.is_authenticated or (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or user.tier != obj.tier:
+        ## 대회 전 / 유저의 조건에 따라 신청 가능여부 판별
+        # 로그인 x 상태일 때
+        if obj.status == 'before' and not user.is_authenticated:
             return '신청 불가능'
-        elif obj.status == 'before' and user.is_authenticated and current_applicants_count >= obj.max_participants:
-            return '대기 가능'
-        elif obj.status == 'before' and user.is_authenticated:
-            return '신청 가능'
+        # 로그인 확인
+        if obj.status == 'before':
+            # 유저 성별 / 실력 확인
+            if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or user.tier != obj.tier:
+                return '신청 불가능'
+            # 대기 상태 여부
+            elif current_applicants_count >= obj.max_participants:
+                return '대기 가능'
+            # 모든 상황이 부합할 경우 신청 가능
+            else:
+                return '신청 가능'
+        # 대회 진행중    
         elif obj.status == 'during':
             return '대회 진행중'
+        # 대회 종료
         else:
             return '대회 종료'
         
@@ -133,8 +143,7 @@ class CompetitionApplySerializer(serializers.ModelSerializer):
     class Meta:
         model = Competition
         fields = ['id', 'name', 'start_date', 'match_type_details', 'tier', 'total_rounds', 'total_sets', 'location', 'address', 'bank_account_name', 
-                  'bank_name', 'bank_account_number', 'fee'
-                  ]
+                  'bank_name', 'bank_account_number', 'fee']
         
         
     def get_tier(self, obj):
