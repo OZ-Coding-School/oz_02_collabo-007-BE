@@ -39,6 +39,7 @@ CUSTOM_APPS = [
     'coach.apps.CoachConfig',
     'team.apps.TeamConfig',
     'club.apps.ClubConfig',
+    'club_applicant.apps.ClubApplicantConfig',
     'tier.apps.TierConfig',
     'image_url.apps.ImageUrlConfig',
     'matchtype.apps.MatchTypeConfig',

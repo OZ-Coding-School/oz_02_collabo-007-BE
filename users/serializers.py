@@ -4,8 +4,8 @@ from rest_framework import serializers
 from .models import Club
 from image_url.models import ImageUrl
 from image_url.utils import S3ImageUploader
-from image_url.serializers import ImageUrlSerializer
 from club.serializers import ClubDetailSerializer
+from club_applicant.models import ClubApplicant
 from team.serializers import TeamDetailSerializer
 
 
@@ -27,18 +27,10 @@ class CreateUserSerializer(serializers.ModelSerializer):
         if not value.isdigit():
             raise serializers.ValidationError("휴대폰 번호는 숫자만 포함해야 합니다.")
         return value
-    
-        
-
-    def validate_phone(self, value):
-        # 숫자로만 구성되어 있는지 확인
-        if not value.isdigit():
-            raise serializers.ValidationError("휴대폰 번호는 숫자만 포함해야 합니다.")
-        return value
-    
         
 
     def create(self, validated_data):
+        club_data = validated_data.pop('club', None)
         image_data = validated_data.pop('image_file', None)
         user = User.objects.create_user(
             phone=validated_data['phone'],
@@ -46,9 +38,12 @@ class CreateUserSerializer(serializers.ModelSerializer):
             username=validated_data['username'],
             birth=validated_data.get('birth'),
             gender=validated_data.get('gender'),
-            club=validated_data.get('club', None)
         )
         
+        # 클럽 가입 신청 처리
+        if club_data:
+            ClubApplicant.objects.create(user=user, club=club_data)
+
         # image_data가 None이 아니고, 파일 크기가 0보다 큰 경우에만 이미지 업로드 실행
         if image_data and hasattr(image_data, 'size') and image_data.size > 0:
             uploader = S3ImageUploader()
@@ -61,33 +56,11 @@ class CreateUserSerializer(serializers.ModelSerializer):
                 size=size
             )
             user.image_url = image_instance  # 사용자 인스턴스에 이미지 인스턴스 할당
+            
         user.save()  # 변경 사항 저장
 
             
         return user
-    
-    
-    
-    
-# 휴대폰 번호 중복 체크 serializer
-
-class PhoneCheckSerializer(serializers.Serializer):
-    phone = serializers.CharField()
-    
-    def validate_phone(self, value):
-        # 숫자로만 구성되어 있는지 확인
-        if not value.isdigit():
-            raise serializers.ValidationError("휴대폰 번호는 숫자만 포함해야 합니다.")
-        
-        # 이미 사용 중인지 확인
-        if User.objects.filter(phone=value).exists():
-            raise serializers.ValidationError("이미 사용 중인 휴대폰 번호입니다.")
-        
-        return value
-
-
-
-
     
     
     
@@ -178,15 +151,34 @@ class UpdateMyProfileSerializer(serializers.ModelSerializer):
 
         # 클럽 ID 처리
         club_data = validated_data.pop('club', None)
-        if club_data in ['']:  # 빈 문자열 인 경우
+        
+        # 빈 문자열 - 프로필 편집에서 유저가 기존 클럽을 삭제한 경우 (유저의 클럽id를 Null으로 변경)
+        if club_data in ['']:  
             instance.club = None
+        
+        # request 폼데이터에 클럽 데이터가 제공되지 않은 경우 (기존 클럽 유지)
+        elif club_data is None: 
+            pass
+            
         else:
-            # club 필드를 다시 Club 객체로 변환해야 할 경우
             try:
+                # 클럽을 변경 신청한 경우
                 club_instance = Club.objects.get(id=club_data)
-                instance.club = club_instance
-            except Club.DoesNotExist:
+                
+                # 기존에 유저가 가지고 있던 클럽id를 null값으로 변경
                 instance.club = None
+                
+                # 기존에 유저가 가지고 있던 팀id를 null값으로 변경
+                instance.team = None
+                
+                instance.save()
+                
+                # 새로운 클럽에 가입 신청
+                ClubApplicant.objects.create(user=instance, club=club_instance)
+                
+            except Club.DoesNotExist:
+                raise serializers.ValidationError('해당 클럽이 존재하지 않습니다')
+
 
         # 이미지 파일 처리    
         if remove_image: # 클라이언트가 이미지 제거를 요청한 경우
