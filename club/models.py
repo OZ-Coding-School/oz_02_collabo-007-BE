@@ -1,6 +1,5 @@
 from django.db import models
 from core.models import TimeStampedModel, SoftDeleteModel
-from custom_admin.club.manager import ClubManager
 
 
 class Club(TimeStampedModel, SoftDeleteModel):
@@ -12,7 +11,6 @@ class Club(TimeStampedModel, SoftDeleteModel):
     image_url = models.ForeignKey(
         'image_url.ImageUrl', on_delete=models.DO_NOTHING, blank=True, null=True)
     objects = models.Manager()
-    admin_objects = ClubManager()
 
     def __str__(self):
         return self.name

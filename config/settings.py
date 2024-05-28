@@ -28,8 +28,7 @@ DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 IS_LOCAL = True
 
 
-ALLOWED_HOSTS = ['*'] # postman 테스트를 위해 *로 잠시 세팅
-
+ALLOWED_HOSTS = ['*']  # postman 테스트를 위해 *로 잠시 세팅
 
 
 # Application definition
@@ -70,7 +69,7 @@ SYSTEM_APPS = [
 INSTALLED_APPS = CUSTOM_APPS + SYSTEM_APPS
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware', # <- 가능한 높게 위치시켜야 한다.
+    'corsheaders.middleware.CorsMiddleware',  # <- 가능한 높게 위치시켜야 한다.
     'djangorestframework_camel_case.middleware.CamelCaseMiddleWare',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -79,11 +78,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'core.log_middleware.LogRequestMiddleware', # 로그 확인
+    'core.log_middleware.LogRequestMiddleware',  # 로그 확인
 ]
-
-
-
 
 
 SWAGGER_SETTINGS = {
@@ -96,7 +92,6 @@ SWAGGER_SETTINGS = {
     },
     'USE_SESSION_AUTH': False,
 }
-
 
 
 ROOT_URLCONF = 'config.urls'
@@ -175,7 +170,6 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-
 # Auth 기본값 설정
 AUTH_USER_MODEL = 'users.CustomUser'
 
@@ -190,17 +184,18 @@ REST_FRAMEWORK = {
     # ),
     'DEFAULT_PARSER_CLASSES': (
         'djangorestframework_camel_case.parser.CamelCaseFormParser',
-        'djangorestframework_camel_case.parser.CamelCaseMultiPartParser', # 카멜 케이스 변환 파서
+        'djangorestframework_camel_case.parser.CamelCaseMultiPartParser',  # 카멜 케이스 변환 파서
         'djangorestframework_camel_case.parser.CamelCaseJSONParser',
         'rest_framework.parsers.MultiPartParser',
         'rest_framework.parsers.FormParser',
     ),
     'DEFAULT_RENDERER_CLASSES': (
-        'djangorestframework_camel_case.render.CamelCaseJSONRenderer', # 최상위로 올려야 카멜케이스로 변경 가능
-        'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer', # 최상위로 올려야 카멜케이스 변경 가능
+        'djangorestframework_camel_case.render.CamelCaseJSONRenderer',  # 최상위로 올려야 카멜케이스로 변경 가능
+        # 최상위로 올려야 카멜케이스 변경 가능
+        'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer',
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
-    ),    
+    ),
 }
 
 
@@ -217,7 +212,7 @@ SIMPLE_JWT = {
 }
 
 
-CORS_ORIGIN_ALLOW_ALL = True # <- 모든 호스트 허용
+CORS_ORIGIN_ALLOW_ALL = True  # <- 모든 호스트 허용
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -243,3 +238,20 @@ CORS_ALLOW_HEADERS = [
 CSRF_TRUSTED_ORIGINS = [
     'https://alchemistapi.watcher.team',
 ]
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}
