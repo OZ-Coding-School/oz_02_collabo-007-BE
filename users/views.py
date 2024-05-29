@@ -214,7 +214,7 @@ class UpdateMyProfileAPIView(APIView):
 
 
 
-# 유저 비밀번호 변경 시리얼라이저
+
 class ChangePasswordView(APIView):
     """
     유저 비밀번호 변경 api
