@@ -5,4 +5,5 @@ urlpatterns = [
     path('admin/users/', include('custom_admin.user.urls')),
     path('admin/', include('custom_admin.club.urls')),
     path('admin/', include('custom_admin.team.urls')),
+    path('admin/', include('custom_admin.competition.urls')),
 ]

@@ -8,12 +8,15 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action, permission_classes, authentication_classes
 from custom_admin.service.image_service import ImageService
 from rest_framework.response import Response
+from django.db.models import Count
+
 
 from team.models import Team
 
 
 class ClubViewSet(viewsets.ModelViewSet):
-    queryset = Club.objects.all().order_by('-created_at')
+    queryset = Club.objects.all().select_related(
+        'image_url').order_by('-created_at')
     pagination_class = StandardResultsSetPagination
     image_service = ImageService()
 
@@ -146,7 +149,10 @@ class ClubViewSet(viewsets.ModelViewSet):
         club = self.get_object()
 
         if request.method == 'GET':
-            return Response(TeamSerializer(club.teams.all(), many=True).data, status=status.HTTP_200_OK)
+            teams = club.teams.annotate(users_count=Count('users')).select_related(
+                'image_url').all()
+
+            return Response(TeamSerializer(teams, many=True).data, status=status.HTTP_200_OK)
 
         if request.method == 'POST':
             return self._create_team(request, club)
@@ -198,7 +204,8 @@ class ClubViewSet(viewsets.ModelViewSet):
         club = self.get_object()
 
         if request.method == 'GET':
-            return Response(MemberSerializer(User.objects.filter(club=club), many=True).data, status=status.HTTP_200_OK)
+            members = User.objects.filter(club=club).select_related('team')
+            return Response(MemberSerializer(members, many=True).data, status=status.HTTP_200_OK)
 
         if request.method == 'PUT':
             return self._update_member(request)

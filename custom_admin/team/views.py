@@ -14,7 +14,7 @@ class TeamViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.G
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
             return Team.objects.none()
-        return Team.objects.all()
+        return Team.objects.all().select_related('club', 'image_url')
 
     @swagger_auto_schema(
         operation_summary='팀 상세 조회',
@@ -71,4 +71,5 @@ class TeamViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.G
     @action(detail=True, methods=['get'], url_path='members')
     def members(self, request, *args, **kwargs):
         team = self.get_object()
-        return Response(MemberSerializer(team.users.all(), many=True).data, status=status.HTTP_200_OK)
+        members = team.users.select_related('image_url').all()
+        return Response(MemberSerializer(members, many=True).data, status=status.HTTP_200_OK)

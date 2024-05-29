@@ -18,7 +18,8 @@ INITIAL_PASSWORD = '123456'
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = CustomUser.objects.all().order_by('-created_at')
+    queryset = CustomUser.objects.all().select_related(
+        'club', 'image_url').order_by('-created_at')
     serializer_class = UserSerializer
     pagination_class = StandardResultsSetPagination
     image_service = ImageService()

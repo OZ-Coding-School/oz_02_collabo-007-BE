@@ -35,13 +35,10 @@ class TeamSerializer(serializers.ModelSerializer):
     image_file = serializers.ImageField(write_only=True, required=False)
     image_url = serializers.SerializerMethodField(read_only=True)
     description = serializers.CharField(required=False, allow_blank=True)
-    users_count = serializers.SerializerMethodField(read_only=True)
+    users_count = serializers.IntegerField(read_only=True)
 
     def get_image_url(self, obj):
         return obj.image_url.image_url if obj.image_url else None
-
-    def get_users_count(self, obj):
-        return obj.users.count()
 
     class Meta:
         model = Team
