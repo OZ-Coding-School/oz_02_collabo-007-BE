@@ -146,17 +146,17 @@ class Game(models.Model):
 #         db_table = 'match_type'
 
 
-class Point(models.Model):
-    id = models.CharField(primary_key=True, max_length=255)
-    points = models.IntegerField(blank=True, null=True)
-    expireddate = models.DateTimeField(db_column='expiredDate', blank=True, null=True)  # Field name made lowercase.
-    tier = models.ForeignKey('Tier', models.DO_NOTHING)
-    user = models.ForeignKey('Users', models.DO_NOTHING)
-    match_type = models.ForeignKey(MatchType, models.DO_NOTHING)
+# class Point(models.Model):
+#     id = models.CharField(primary_key=True, max_length=255)
+#     points = models.IntegerField(blank=True, null=True)
+#     expireddate = models.DateTimeField(db_column='expiredDate', blank=True, null=True)
+#     tier = models.ForeignKey('Tier', models.DO_NOTHING)
+#     user = models.ForeignKey('Users', models.DO_NOTHING)
+#     match_type = models.ForeignKey(MatchType, models.DO_NOTHING)
 
-    class Meta:
-        managed = False
-        db_table = 'point'
+#     class Meta:
+#         managed = False
+#         db_table = 'point'
 
 
 class Set(models.Model):
