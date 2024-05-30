@@ -108,6 +108,7 @@ class CompetitionApplyView(APIView):
             return Response({'error': '제출된 코드가 유효하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
         
         applicant = request.user # 신청자 = 로그인한 유저
+        print(request.user)
 
         # 신청자 중복 신청 확인
         if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
@@ -127,9 +128,13 @@ class CompetitionApplyView(APIView):
             if competition.match_type.gender != applicant.gender:
                 return Response({'error': f'본 경기는 {competition.match_type.gender} 경기이므로 신청할 수 없습니다.'})
                         
-        
-        if competition.tier.name != applicant.tier:
+        # 티어 구분
+        if competition.tier.name != applicant.tier.name:
             return Response({'error': '실력 제한 규정으로 경기를 신청할 수 없습니다.'})
+            #return Response({'error': f'대회 티어:{competition.tier.id} 신청자 티어:{applicant.tier.id}'})
+
+
+
 
         ### 단식 신청
         if competition.match_type.type == 'single':
