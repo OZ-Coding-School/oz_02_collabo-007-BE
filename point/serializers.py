@@ -27,6 +27,9 @@ class MatchTypeSerializer(serializers.ModelSerializer):
         fields = ['gender', 'type']
 
 
+
+
+
 # 실시간 랭킹 조회 serializer
 class LiveRankingSerializer(serializers.ModelSerializer):
     total_points = serializers.IntegerField(read_only=True)
