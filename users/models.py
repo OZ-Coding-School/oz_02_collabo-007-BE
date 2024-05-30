@@ -61,7 +61,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, SoftDeleteModel, TimeStampe
     REQUIRED_FIELDS = [] # 슈퍼유저 생성시 요구되는 필드 목록 설정
     
     def __str__(self):
-        return self.phone
+        return f'{self.username} ({self.phone})'
     
 
     class Meta:
