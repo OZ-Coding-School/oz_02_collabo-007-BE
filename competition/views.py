@@ -7,6 +7,13 @@ from django.db import transaction
 from datetime import timedelta
 from django.utils.timezone import now
 
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from djangorestframework_camel_case.parser import CamelCaseFormParser
+from rest_framework.parsers import MultiPartParser, FormParser
+
+
 from .models import Competition
 from users.models import CustomUser
 from matchtype.models import MatchType
@@ -15,6 +22,9 @@ from applicant.models import Applicant
 from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplyInfoSerializer, CompetitionApplySerializer
 from applicant_info.serializers import ApplicantInfoSerializer
 from applicant.serializers import ApplicantSerializer
+from users.serializers import UserWithClubInfoSerializer
+
+
 
 
 ## 대회 리스트
@@ -55,12 +65,35 @@ class CompetitionDetailView(APIView):
             return Response({'error': '대회를 찾을 수 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
 
 
+
+# 파트너 조회
+class PartnerSearchView(APIView):
+    """
+    파트너 검색
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        search_query = request.query_params.get('query', '')
+        
+        if not search_query:
+            return Response({'error': '검색어를 입력해주세요.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 검색어에 따라 사용자 필터링
+        partners = CustomUser.objects.filter(username__icontains=search_query)
+        serializer = UserWithClubInfoSerializer(partners, many=True)
+        
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 ## 대회신청
 class CompetitionApplyView(APIView):
     """
     대회 신청
     """
+
     permission_classes = [IsAuthenticated]
+    parser_classes = (CamelCaseFormParser, MultiPartParser)
     
     def post(self, request, pk):
         
@@ -75,12 +108,29 @@ class CompetitionApplyView(APIView):
             return Response({'error': '제출된 코드가 유효하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
         
         applicant = request.user # 신청자 = 로그인한 유저
+
         # 신청자 중복 신청 확인
         if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
             return Response({'error': '해당 대회에 이미 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 진행 중인 대회 신청시 에러메세지
+        if competition.status == 'during':
+            return Response({'error': '이미 진행중인 대회에는 신청할 수 없습니다.'})
+        
+        # 끝낸 대회 신청시 에러메세지
+        if competition.status == 'ended':
+            return Response({'error': '이미 종료된 대회입니다.'})
+
+
+        # 신청자 성별이 대회에 적합한지 확인
+        if competition.match_type.gender != ('mix','team'): # 대회가 혼성이나 팀 경기가 아니고
+            if competition.match_type.gender != applicant.gender:
+                return Response({'error': f'본 경기는 {competition.match_type.gender} 경기이므로 신청할 수 없습니다.'})
                         
         
-        
+        if competition.tier.name != applicant.tier:
+            return Response({'error': '실력 제한 규정으로 경기를 신청할 수 없습니다.'})
+
         ### 단식 신청
         if competition.match_type.type == 'single':
             return self.handle_singles(request, competition, applicant)
@@ -101,6 +151,7 @@ class CompetitionApplyView(APIView):
             # 혼성 확인
             if competition.match_type.gender == 'mix' and applicant.gender == partner.gender:
                 return Response({'error': '혼성 경기는 서로 다른 성별의 파트너가 필요합니다.'}, status=status.HTTP_400_BAD_REQUEST)
+            
             # 파트너 성별 확인
             elif partner.gender != competition.match_type.gender and competition.match_type.gender != 'mix':
                 return Response({'error': '파트너 성별이 해당 대회에는 신청 불가능합니다.'}, status=status.HTTP_400_BAD_REQUEST)
