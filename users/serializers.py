@@ -1,7 +1,7 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model , authenticate
 from rest_framework import serializers
-from .models import Club
+from .models import Club, CustomUser
 from image_url.models import ImageUrl
 from image_url.utils import S3ImageUploader
 from club.serializers import ClubDetailSerializer
@@ -225,7 +225,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         
 
     def validate_changed_password(self, value):
-        # 비밀번호가 숫자로만 구성되어 있는지 확인
+        # 비밀번호가 숫자로만 구성되어 있는지 확인 -> 비밀번호 문자로도 받게 수정 필요
         if not value.isdigit():
             raise serializers.ValidationError("비밀번호는 숫자로만 구성되어야 합니다.")
         return value
@@ -250,4 +250,28 @@ class UserInfoSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         if obj.image_url:
             return obj.image_url.image_url
+        return None
+
+
+
+# 파트너 검색용 시리얼라이저
+class UserWithClubInfoSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    club = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = ('id', 'username', 'image_url', 'club')
+
+    def get_image_url(self, obj):
+        if obj.image_url:
+            return obj.image_url.image_url
+        return None
+
+    def get_club(self, obj):
+        if obj.club:
+            return {
+                'id': obj.club.id,
+                'name': obj.club.name
+            }
         return None
