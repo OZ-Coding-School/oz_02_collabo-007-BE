@@ -1,6 +1,10 @@
 from django.urls import path
-from .views import LiveRankingView
+from .views import RealtimeUserRankingView, RealtimeTeamRankingView, RealtimeMyRankingView, RealtimeMyTeamRankingView
 
 urlpatterns = [
-    path('live-ranking/', LiveRankingView.as_view(), name='live-ranking'),
+    path('ranking/realtime/user', RealtimeUserRankingView.as_view(), name='realtime_user_ranking'),
+    path('ranking/realtime/team', RealtimeTeamRankingView.as_view(), name='realtime_team_ranking'),
+    path('ranking/realtime/myrank', RealtimeMyRankingView.as_view(), name='realtime_my_ranking'),
+    path('ranking/realtime/myteamrank', RealtimeMyTeamRankingView.as_view(), name='realtime_my_team_ranking'),
+    
 ]

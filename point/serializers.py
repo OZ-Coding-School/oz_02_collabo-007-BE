@@ -21,18 +21,13 @@ class GivePointSerializer(serializers.ModelSerializer):
 
 
 
-class MatchTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MatchType
-        fields = ['gender', 'type']
 
 
 
-
-
-# 실시간 랭킹 조회 serializer
-class LiveRankingSerializer(serializers.ModelSerializer):
+# 실시간 유저 랭킹 조회 serializer
+class RealtimeUserRankingSerializer(serializers.ModelSerializer):
     total_points = serializers.IntegerField(read_only=True)
+    rank = serializers.IntegerField(read_only=True)
     match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
     image_url = serializers.SerializerMethodField()
     user= serializers.SerializerMethodField()
@@ -41,7 +36,7 @@ class LiveRankingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Point
-        fields = ('user', 'tier', 'total_points', 'club', 'image_url', 'match_type_details')
+        fields = ('rank', 'user', 'tier', 'total_points', 'club', 'image_url', 'match_type_details')
 
     # 각 필드 이름 가져오는 인스턴스 메서드
     def get_user(self, obj):
@@ -63,3 +58,39 @@ class LiveRankingSerializer(serializers.ModelSerializer):
         if obj.user.image_url is None:
             return None
         return obj.user.image_url.image_url
+    
+    
+    
+    
+    
+    
+    
+
+# 실시간 팀 랭킹 조회 serializer
+class RealtimeTeamRankingSerializer(serializers.ModelSerializer):
+    total_points = serializers.IntegerField(read_only=True)
+    rank = serializers.IntegerField(read_only=True)
+    match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
+    image_url = serializers.SerializerMethodField()
+    team= serializers.SerializerMethodField()
+    club = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Point
+        fields = ('rank', 'team', 'total_points', 'club', 'image_url', 'match_type_details')
+
+    # 각 필드 이름 가져오는 인스턴스 메서드
+    def get_team(self, obj):
+        if obj.team:
+            return obj.team.name
+        return None
+
+    def get_club(self, obj):
+        if obj.team.club:
+            return obj.team.club.name
+        return None
+ 
+    def get_image_url(self, obj):
+        if obj.team.image_url is None:
+            return None
+        return obj.team.image_url.image_url

@@ -13,7 +13,7 @@ class Point(TimeStampedModel):
     tier = models.ForeignKey(Tier, models.DO_NOTHING, blank=True, null=True)
     team = models.ForeignKey(Team, models.DO_NOTHING, blank=True, null=True)
     match_type = models.ForeignKey(MatchType, models.DO_NOTHING, blank=True, null=True)
-    user = models.ForeignKey(CustomUser, models.DO_NOTHING)
+    user = models.ForeignKey(CustomUser, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         db_table = 'point'
