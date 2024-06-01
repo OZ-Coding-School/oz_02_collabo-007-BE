@@ -3,8 +3,10 @@ from .models import CustomUser
 
 class CustomUserAdmin(admin.ModelAdmin):
     model = CustomUser
-    list_display = ('id', 'phone', 'username', 'gender', 'birth', 'club', 'team', 'tier', 'image_url')  # 실제 CustomUser 모델의 필드를 반영
-    ordering = ('id',)  # 실제 CustomUser 모델의 USERNAME_FIELD를 사용
+    # 실제 CustomUser 모델의 필드를 반영
+    list_display = ('id', 'username', 'phone', 'gender', 'birth', 'club', 'team', 'get_tiers_display' ,'image_url')  
+    filter_horizontal = ('tiers',)  # ManyToManyField를 사용하는 필드 이름
+    ordering = ('-id',)  # 실제 CustomUser 모델의 USERNAME_FIELD를 사용
     
     def save_model(self, request, obj, form, change):
         if 'password' in form.changed_data:
