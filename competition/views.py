@@ -20,8 +20,8 @@ from matchtype.models import MatchType
 from applicant_info.models import ApplicantInfo
 from applicant.models import Applicant
 from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplyInfoSerializer, CompetitionApplySerializer
-from applicant_info.serializers import ApplicantInfoSerializer
-from applicant.serializers import ApplicantSerializer
+from applicant_info.serializers import ApplicantInfoSerializer, CompetitionApplicantInfoSerializer
+from applicant.serializers import ApplicantSerializer, CompetitionApplicantSerializer
 from users.serializers import UserWithClubInfoSerializer
 
 
@@ -73,6 +73,20 @@ class PartnerSearchView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_summary='파트너 검색',
+        operation_description='쿼리파라미터를 사용하여 파트너 검색 결과 목록을 불러온다 (예시 /api/v1/competitions/1/partnersearch/?query=검색어)',
+        manual_parameters=[
+            openapi.Parameter('query', openapi.IN_QUERY, description="ex) 유", type=openapi.TYPE_STRING),
+        ],
+        responses={
+            200: UserWithClubInfoSerializer(many=True),
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+
     def get(self, request, pk):
         search_query = request.query_params.get('query', '')
         
@@ -112,25 +126,25 @@ class CompetitionApplyView(APIView):
 
         # 신청자 중복 신청 확인
         if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
-            return Response({'error': '해당 대회에 이미 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 진행 중인 대회 신청시 에러메세지
         if competition.status == 'during':
-            return Response({'error': '이미 진행중인 대회에는 신청할 수 없습니다.'})
+            return Response({'error': '진행중인 대회에는 신청할 수 없습니다.'})
         
         # 끝낸 대회 신청시 에러메세지
         if competition.status == 'ended':
-            return Response({'error': '이미 종료된 대회입니다.'})
+            return Response({'error': '종료된 대회입니다.'})
 
 
         # 신청자 성별이 대회에 적합한지 확인
         if competition.match_type.gender != ('mix','team'): # 대회가 혼성이나 팀 경기가 아니고
             if competition.match_type.gender != applicant.gender:
-                return Response({'error': f'본 경기는 {competition.match_type.gender} 경기이므로 신청할 수 없습니다.'})
+                return Response({'error': f'이 대회는 {competition.match_type.gender} 경기이므로 신청할 수 없습니다.'})
                         
         # 티어 구분
         if competition.tier.name != applicant.tier.name:
-            return Response({'error': '실력 제한 규정으로 경기를 신청할 수 없습니다.'})
+            return Response({'error': '실력 제한 규정으로 참가 신청을 할 수 없습니다.'})
             #return Response({'error': f'대회 티어:{competition.tier.id} 신청자 티어:{applicant.tier.id}'})
 
 
@@ -149,7 +163,7 @@ class CompetitionApplyView(APIView):
             
             # 파트너 선택 확인
             if not partner_id:
-                    return Response({'error': '파트너가 입력되지 않았습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'error': '파트너를 선택하세요.'}, status=status.HTTP_400_BAD_REQUEST)
             
             partner = CustomUser.objects.get(id=partner_id) # 파트너 인스턴스 생성
             
@@ -159,15 +173,15 @@ class CompetitionApplyView(APIView):
             
             # 파트너 성별 확인
             elif partner.gender != competition.match_type.gender and competition.match_type.gender != 'mix':
-                return Response({'error': '파트너 성별이 해당 대회에는 신청 불가능합니다.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': '선택한 파트너의 성별이 경기의 조건과 일치하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
         
             # 자기 자신 선택 불가
             elif applicant.id == partner.id:
-                return Response({'error': '신청자 본인을 파트너로 선택할 수 없습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': '본인을 파트너로 선택할 수 없습니다.'}, status=status.HTTP_400_BAD_REQUEST)
             
             # 파트너 티어 확인
             elif partner.tier != competition.tier:
-                return Response({'error': '파트너 부가 달라 신청 불가능합니다.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': '선택한 파트너 부가 경기의 조건과 일치하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
             
             
             # 파트너 중복 신청 확인
@@ -177,7 +191,7 @@ class CompetitionApplyView(APIView):
             return self.handle_doubles(request, competition, applicant, partner)
         
         else:
-            return Response({'error': '대회신청이 정상적으로 되지 않았습니다. 신청정보를 확인해주세요.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': '대회신청이 정상적으로 진행되지 않았습니다. 신청정보를 확인해주세요.'}, status=status.HTTP_400_BAD_REQUEST)
         
         
         
@@ -278,17 +292,66 @@ class CompetitionApplyView(APIView):
             response_data = {
                 'status': f'{applicant_info_status}',
                 'applicant_info': {
-                    'first_applicant': {
-                        'applicant': saved_applicants[0].user.username,
-                        'phone': saved_applicants[0].user.phone
-                        },
-                    'second_applicant': {
-                        'applicant': saved_applicants[1].user.username,
-                        'phone': saved_applicants[1].user.phone
-                        }
-                    },
+                    'applicant': applicant.username,
+                    'phone': applicant.phone
+                },
                 'competition_info': competition_serializer.data,
-                'expired_date': expired_date                    
-                }
+                'expired_date': expired_date  
+            }
 
         return Response(response_data, status=status.HTTP_201_CREATED)
+    
+
+class CompetitionApplyResultView(APIView):
+    """
+    대회 신청 결과 조회
+    """
+
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, pk):
+        
+        user = request.user
+        
+        # 대회를 찾을 수 없는 경우
+        try :
+            competition = Competition.objects.get(pk=pk)
+        except Competition.DoesNotExist :
+            return Response({'error':'존재하지 않는 대회입니다.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # 단식 대회의 경우
+        if competition.match_type.type == 'single':
+        
+            try :
+                applicant_1 = Applicant.objects.get(applicant_info__competition=competition)
+            except Applicant.DoesNotExist :
+                return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
+
+            applicant1_serializer = CompetitionApplicantSerializer(applicant_1)
+            
+            applicants = applicant1_serializer.data
+
+            
+                
+        # 복식 대회의 경우
+        else : 
+            try :
+                applicant_1, applicant_2 = Applicant.objects.filter(applicant_info__competition=competition)
+            except Applicant.DoesNotExist :
+                return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
+        
+            applicant1_serializer = CompetitionApplicantSerializer(applicant_1)
+            applicant2_serializer = CompetitionApplicantSerializer(applicant_2)
+
+            applicants = [applicant1_serializer.data, applicant2_serializer.data]
+
+
+        # 대회 신청정보
+        applicant_infos = applicant_1.applicant_info
+
+        applicant_info_serializer = CompetitionApplicantInfoSerializer(applicant_infos)
+        competition_serializer = CompetitionApplySerializer(competition)
+        return Response(['applicant_list :', applicants, 
+                        'applicant_info :', applicant_info_serializer.data, 
+                        'competition :', competition_serializer.data], 
+                        status=status.HTTP_200_OK)
