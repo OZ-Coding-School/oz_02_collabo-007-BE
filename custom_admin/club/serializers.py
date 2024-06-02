@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from club.models import Club
+from club_applicant.models import ClubApplicant
 from team.models import Team
 
 
@@ -59,3 +60,12 @@ class MemberSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'phone', 'username', 'team', 'team_id')
         read_only_fields = ('id', 'phone', 'username', 'team')
+
+
+class RegistrationSerializer(serializers.ModelSerializer):
+    user = MemberSerializer(read_only=True)
+
+    class Meta:
+        model = ClubApplicant
+        fields = ('id', 'user', 'club', 'date_applied', 'status')
+        read_only_fields = ('id', 'user', 'date_applied', 'club')

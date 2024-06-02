@@ -1,5 +1,5 @@
 from club.models import Club
-from custom_admin.club.serializers import ClubListSerializer, ClubSerializer, MemberSerializer, TeamSerializer, User
+from custom_admin.club.serializers import ClubListSerializer, ClubSerializer, MemberSerializer, RegistrationSerializer, TeamSerializer, User
 from custom_admin.pagination import StandardResultsSetPagination
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets, status
@@ -220,3 +220,36 @@ class ClubViewSet(viewsets.ModelViewSet):
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @swagger_auto_schema(
+        method='get',
+        operation_summary='클럽 가입 신청 목록 조회',
+        operation_description='클럽 가입 신청 목록을 조회합니다.',
+        responses={
+            200: RegistrationSerializer(many=True),
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @swagger_auto_schema(
+        method='put',
+        operation_summary='클럽 가입 신청 승인',
+        operation_description='클럽 가입 신청을 승인합니다.',
+        responses={
+            200: RegistrationSerializer,
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+        }
+    )
+    @action(detail=True, methods=['get', 'put'], url_name='registrations', url_path='registrations')
+    def registrations(self, request, *args, **kwargs):
+        club = self.get_object()
+
+        if request.method == 'GET':
+            registrations = club.applicants.filter(status='pending').select_related('user')
+            return Response(RegistrationSerializer(registrations, many=True).data, status=status.HTTP_200_OK)
+
+        if request.method == 'PUT':
+            return self._update_registration(request)
