@@ -142,7 +142,7 @@ class CompetitionApplySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Competition
-        fields = ['id', 'name', 'start_date', 'match_type_details', 'tier', 'total_rounds', 'total_sets', 'location', 'address', 'bank_account_name', 
+        fields = ['name', 'start_date', 'match_type_details', 'tier', 'total_rounds', 'location', 'address', 'bank_account_name', 
                   'bank_name', 'bank_account_number', 'fee']
         
         
@@ -160,3 +160,4 @@ class CompetitionStatusSerializer(serializers.ModelSerializer):
     
     class Meta:
         fields = ['name', 'match_type_details', 'tier', ]
+
