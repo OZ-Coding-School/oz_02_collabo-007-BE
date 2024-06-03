@@ -122,6 +122,7 @@ class CompetitionApplyView(APIView):
             return Response({'error': '제출된 코드가 유효하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
         
         applicant = request.user # 신청자 = 로그인한 유저
+        print(request.user)
 
 
         # 신청자 중복 신청 확인
