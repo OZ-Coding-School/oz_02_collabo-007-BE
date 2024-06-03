@@ -18,10 +18,11 @@ from .serializers import RealtimeUserRankingSerializer, RealtimeTeamRankingSeria
 class RealtimeUserRankingView(APIView):
     @swagger_auto_schema(
         operation_summary='실시간 유저 랭킹 조회',
-        operation_description='쿼리파라미터를 사용하여 매치타입별(팀x) 데이터를 불러올 수 있음 (예시 /api/v1/ranking/realtime/user?gender=male&type=single)',
+        operation_description='쿼리파라미터를 사용하여 매치타입별 데이터 및 유저명 조회 가능 (예시 /api/v1/ranking/realtime/user?gender=male&type=single&name=오태식)',
         manual_parameters=[
             openapi.Parameter('gender', openapi.IN_QUERY, description="ex) male", type=openapi.TYPE_STRING),
-            openapi.Parameter('type', openapi.IN_QUERY, description="ex) single", type=openapi.TYPE_STRING)
+            openapi.Parameter('type', openapi.IN_QUERY, description="ex) single", type=openapi.TYPE_STRING),
+            openapi.Parameter('name', openapi.IN_QUERY, description="ex) 김", type=openapi.TYPE_STRING)
         ],
         responses={
             200: RealtimeUserRankingSerializer(many=True),
@@ -35,20 +36,24 @@ class RealtimeUserRankingView(APIView):
             current_time = timezone.now()
             # 기본 필터: timezone now 기준 만료되지 않은 승점을 수집
             queryset = Point.objects.filter(expired_date__gte=current_time)
-            # 쿼리 파라미터
+            
+            # 기본적인 매치 타입과 젠더에 대한 필터링
             match_type_param = request.query_params.get('type')
             gender_param = request.query_params.get('gender')
-            
             if match_type_param:
                 queryset = queryset.filter(match_type__type=match_type_param)
             if gender_param:
                 queryset = queryset.filter(match_type__gender=gender_param)
-
+            
+            # 여기까지 필터링된 queryset에 대해서 추가적으로 이름 검색
+            name_param = request.query_params.get('name')
+            if name_param:
+                queryset = queryset.filter(user__username__icontains=name_param)
+                
             # 각 유저의 총 포인트 합산 및 내림차순 정렬 / annotate : 쿼리셋에 집계 값을 추가할 때 사용)
             queryset = queryset.annotate(total_points=Sum('points')).order_by('-total_points')
-
             if not queryset.exists():
-                raise NotFound(detail="No rankings found for the given match type.")
+                raise NotFound(detail='해당 매치 타입에 대한 랭킹이 없습니다.')
             
             # 순위를 계산하여 각 객체에 할당
             for idx, obj in enumerate(queryset, start=1):
@@ -74,10 +79,9 @@ class RealtimeUserRankingView(APIView):
 class RealtimeTeamRankingView(APIView):
     @swagger_auto_schema(
         operation_summary='실시간 팀 랭킹 조회',
-        operation_description='쿼리파라미터를 사용하여 매치타입별(팀o) 데이터를 불러올 수 있음 (예시 /api/v1/ranking/realtime/team?gender=team&type=team)',
+        operation_description='실시간 팀 랭킹을 조회 및 쿼리파라미터를 활용하여 팀명 조회 가능 (예시 /api/v1/ranking/realtime/team?name=라온테니스)',
         manual_parameters=[
-            openapi.Parameter('gender', openapi.IN_QUERY, description="ex) team", type=openapi.TYPE_STRING),
-            openapi.Parameter('type', openapi.IN_QUERY, description="ex) team", type=openapi.TYPE_STRING)
+            openapi.Parameter('name', openapi.IN_QUERY, description="ex) 김", type=openapi.TYPE_STRING)
         ],
         responses={
             200: RealtimeTeamRankingSerializer(many=True),
@@ -91,20 +95,22 @@ class RealtimeTeamRankingView(APIView):
             current_time = timezone.now()
             # 기본 필터: timezone now 기준 만료되지 않은 승점을 수집
             queryset = Point.objects.filter(expired_date__gte=current_time)
-            # 쿼리 파라미터
-            match_type_param = request.query_params.get('type')
-            gender_param = request.query_params.get('gender')
             
-            if match_type_param:
-                queryset = queryset.filter(match_type__type=match_type_param)
-            if gender_param:
-                queryset = queryset.filter(match_type__gender=gender_param)
+            # match_type이 'team'인 경우만 필터링
+            queryset = queryset.filter(match_type__type='team')
+            
+            # 쿼리 파라미터에서 'team_name'을 받아옴
+            team_name_param = request.query_params.get('name')
+            
+            # 'team_name' 파라미터가 존재하면 해당 이름을 포함하는 팀으로 필터링
+            if team_name_param:
+                queryset = queryset.filter(team__name__icontains=team_name_param)
 
             # 각 유저의 총 포인트 합산 및 내림차순 정렬 / annotate : 쿼리셋에 집계 값을 추가할 때 사용)
             queryset = queryset.annotate(total_points=Sum('points')).order_by('-total_points')
             
             if not queryset.exists():
-                raise NotFound(detail="해당 매치 타입에 대한 랭킹이 없습니다.")
+                raise NotFound(detail='해당 매치 타입에 대한 랭킹이 없습니다.')
             
             # 순위를 계산하여 각 객체에 할당
             for idx, obj in enumerate(queryset, start=1):
@@ -206,10 +212,6 @@ class RealtimeMyTeamRankingView(APIView):
     @swagger_auto_schema(
         operation_summary='실시간 나의 팀 랭킹 조회',
         operation_description='로그인한 유저가 속한 팀의 랭킹 정보를 조회합니다.',
-        manual_parameters=[
-            openapi.Parameter('gender', openapi.IN_QUERY, description="ex) team", type=openapi.TYPE_STRING),
-            openapi.Parameter('type', openapi.IN_QUERY, description="ex) team", type=openapi.TYPE_STRING)
-        ],
         responses={
             200: RealtimeTeamRankingSerializer(many=True),
             401: 'Authentication Error',
@@ -222,20 +224,15 @@ class RealtimeMyTeamRankingView(APIView):
             current_time = timezone.now()
             # 기본 필터: timezone now 기준 만료되지 않은 승점을 수집
             queryset = Point.objects.filter(expired_date__gte=current_time)
-            # 쿼리 파라미터
-            match_type_param = request.query_params.get('type')
-            gender_param = request.query_params.get('gender')
             
-            if match_type_param:
-                queryset = queryset.filter(match_type__type=match_type_param)
-            if gender_param:
-                queryset = queryset.filter(match_type__gender=gender_param)
+            # match_type이 'team'인 경우만 필터링
+            queryset = queryset.filter(match_type__type='team')
 
-            # 각 팀의 총 포인트 합산 및 내림차순 정렬 / annotate : 쿼리셋에 집계 값을 추가할 때 사용)
+            # 각 유저의 총 포인트 합산 및 내림차순 정렬 / annotate : 쿼리셋에 집계 값을 추가할 때 사용)
             queryset = queryset.annotate(total_points=Sum('points')).order_by('-total_points')
             
             if not queryset.exists():
-                raise NotFound(detail="해당 매치 타입에 대한 랭킹이 없습니다.")
+                raise NotFound(detail='해당 매치 타입에 대한 랭킹이 없습니다.')
             
             # 순위를 계산하여 각 객체에 할당
             for idx, obj in enumerate(queryset, start=1):
