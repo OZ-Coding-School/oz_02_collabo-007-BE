@@ -124,6 +124,7 @@ class CompetitionApplyView(APIView):
         applicant = request.user # 신청자 = 로그인한 유저
         print(request.user)
 
+
         # 신청자 중복 신청 확인
         if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
             return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -143,7 +144,9 @@ class CompetitionApplyView(APIView):
                 return Response({'error': f'이 대회는 {competition.match_type.gender} 경기이므로 신청할 수 없습니다.'})
                         
         # 티어 구분
-        if competition.tier.name != applicant.tier.name:
+        if competition.tier != applicant.tiers:
+            print(competition.tier)
+            print(applicant.tiers)
             return Response({'error': '실력 제한 규정으로 참가 신청을 할 수 없습니다.'})
             #return Response({'error': f'대회 티어:{competition.tier.id} 신청자 티어:{applicant.tier.id}'})
 
@@ -180,7 +183,7 @@ class CompetitionApplyView(APIView):
                 return Response({'error': '본인을 파트너로 선택할 수 없습니다.'}, status=status.HTTP_400_BAD_REQUEST)
             
             # 파트너 티어 확인
-            elif partner.tier != competition.tier:
+            elif partner.tiers.id != competition.tier.id:
                 return Response({'error': '선택한 파트너 부가 경기의 조건과 일치하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
             
             

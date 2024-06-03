@@ -224,13 +224,6 @@ class ChangePasswordSerializer(serializers.Serializer):
         fields = ['password']
         
 
-    def validate_changed_password(self, value):
-        # 비밀번호가 숫자로만 구성되어 있는지 확인 -> 비밀번호 문자로도 받게 수정 필요
-        if not value.isdigit():
-            raise serializers.ValidationError("비밀번호는 숫자로만 구성되어야 합니다.")
-        return value
-
-
 
 
 

@@ -49,7 +49,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, SoftDeleteModel, TimeStampe
     auth = models.CharField(max_length=255, blank=True, null=True)
     club = models.ForeignKey(Club, on_delete=models.DO_NOTHING, blank=True, null=True) # 사용자가 클럽에 속하지 않아도 되며, 사용자 입력 폼에서도 클럽 필드를 비워둘 수 있음
     team = models.ForeignKey(Team, on_delete=models.DO_NOTHING, blank=True, null=True) 
-    tier = models.ForeignKey(Tier, on_delete=models.DO_NOTHING, blank=True, null=True)
+    tiers = models.ManyToManyField(Tier, related_name='users', blank=True) # 다대다 관계 형성
     is_staff = models.BooleanField(default=False) # 관리자 페이지 접속 가능하게 하는 staff 기능
     is_active = models.BooleanField(default=True) # is_active 활용하여, 계정을 비활성화 가능 (유저 삭제 대신 False)
     image_url = models.ForeignKey(ImageUrl, on_delete=models.DO_NOTHING, blank=True, null=True)
@@ -60,8 +60,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, SoftDeleteModel, TimeStampe
     
     REQUIRED_FIELDS = [] # 슈퍼유저 생성시 요구되는 필드 목록 설정
     
+    # 티어와 매치타입 정보를 문자열로 반환하는 메소드
+    def get_tiers_display(self):
+        return ", ".join([f"{tier.name} ({tier.match_type})" for tier in self.tiers.all()])
+    get_tiers_display.short_description = 'TIER'  # Admin 사이트에서 보여질 컬럼 이름 설정
+    
     def __str__(self):
-        return self.phone
+        return f'{self.username} ({self.phone})'
     
 
     class Meta:
