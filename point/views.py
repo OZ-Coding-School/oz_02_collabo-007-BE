@@ -247,8 +247,8 @@ class RealtimeMyTeamRankingView(APIView):
                 team_rank = None
                 for idx, obj in enumerate(queryset, start=1):
                     if obj.team == request.user.team:
-                        team_rank = obj
-                        team_rank.rank = idx  # 사용자의 순위를 객체에 직접 할당
+                        team_rank = obj # obj가 request.user와 같은 팀에 속할 때 실행.
+                        team_rank.rank = idx  # team_rank 객체의 rank 속성에 idx 값을 할당. (idx = 순위)
                         break
                 
                 if team_rank:
