@@ -144,12 +144,12 @@ class CompetitionApplyView(APIView):
             if competition.match_type.gender != applicant.gender:
                 return Response({'error': f'이 대회는 {competition.match_type.gender} 경기이므로 신청할 수 없습니다.'})
                         
-        # 티어 구분
+        # 티어 구분         
         if competition.tier != applicant.tiers:
             print(competition.tier)
             print(applicant.tiers)
-            return Response({'error': '실력 제한 규정으로 참가 신청을 할 수 없습니다.'})
-            #return Response({'error': f'대회 티어:{competition.tier.id} 신청자 티어:{applicant.tier.id}'})
+            #return Response({'error': '실력 제한 규정으로 참가 신청을 할 수 없습니다.'})
+            return Response({'error': f'대회 티어:{competition.tier.id} 신청자 티어:{applicant.tiers.id}'})
 
 
 
