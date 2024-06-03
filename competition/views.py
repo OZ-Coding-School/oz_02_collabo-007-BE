@@ -354,7 +354,9 @@ class CompetitionApplyResultView(APIView):
 
         applicant_info_serializer = CompetitionApplicantInfoSerializer(applicant_infos)
         competition_serializer = CompetitionApplySerializer(competition)
-        return Response(['applicant_list :', applicants, 
-                        'applicant_info :', applicant_info_serializer.data, 
-                        'competition :', competition_serializer.data], 
-                        status=status.HTTP_200_OK)
+        
+        response_data = {'applicants':applicants, 
+                        'applicantsInfo':applicant_info_serializer.data, 
+                        'competitionInfo': competition_serializer.data}
+        
+        return Response(response_data, status=status.HTTP_200_OK)
