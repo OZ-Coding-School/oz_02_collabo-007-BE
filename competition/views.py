@@ -121,6 +121,8 @@ class CompetitionApplyView(APIView):
         if submitted_code != competition.code:
             return Response({'error': '제출된 코드가 유효하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        applicant = request.user 
+        
         # 신청자 중복 신청 확인
         if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
             return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
