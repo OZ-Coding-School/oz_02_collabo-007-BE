@@ -121,10 +121,6 @@ class CompetitionApplyView(APIView):
         submitted_code = request.data.get('code')
         if submitted_code != competition.code:
             return Response({'error': '제출된 코드가 유효하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        applicant = request.user # 신청자 = 로그인한 유저
-        print(request.user)
-
 
         # 신청자 중복 신청 확인
         if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
@@ -140,16 +136,13 @@ class CompetitionApplyView(APIView):
 
 
         # 신청자 성별이 대회에 적합한지 확인
-        if competition.match_type.gender != ('mix','team'): # 대회가 혼성이나 팀 경기가 아니고
+        if competition.match_type.gender != 'mix': # 대회가 혼성이나 팀 경기가 아니고
             if competition.match_type.gender != applicant.gender:
                 return Response({'error': f'이 대회는 {competition.match_type.gender} 경기이므로 신청할 수 없습니다.'})
                         
-        # 티어 구분         
-        if competition.tier != applicant.tiers:
-            print(competition.tier)
-            print(applicant.tiers)
-            #return Response({'error': '실력 제한 규정으로 참가 신청을 할 수 없습니다.'})
-            return Response({'error': f'대회 티어:{competition.tier.id} 신청자 티어:{applicant.tiers.id}'})
+        # 티어 구분
+        if competition.tier not in applicant.tiers.all():
+            return Response({'error': '실력 제한 규정으로 참가 신청을 할 수 없습니다.'})  
 
 
 
@@ -184,7 +177,7 @@ class CompetitionApplyView(APIView):
                 return Response({'error': '본인을 파트너로 선택할 수 없습니다.'}, status=status.HTTP_400_BAD_REQUEST)
             
             # 파트너 티어 확인
-            elif partner.tiers.id != competition.tier.id:
+            elif competition.tier not in partner.tiers.all():
                 return Response({'error': '선택한 파트너 부가 경기의 조건과 일치하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
             
             
