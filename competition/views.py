@@ -23,6 +23,7 @@ from .serializers import CompetitionListSerializer, CompetitionDetailInfoSeriali
 from applicant_info.serializers import ApplicantInfoSerializer, CompetitionApplicantInfoSerializer
 from applicant.serializers import ApplicantSerializer, CompetitionApplicantSerializer
 from users.serializers import UserWithClubInfoSerializer
+from participant.models import Participant
 
 
 
@@ -120,6 +121,8 @@ class CompetitionApplyView(APIView):
         submitted_code = request.data.get('code')
         if submitted_code != competition.code:
             return Response({'error': '제출된 코드가 유효하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        applicant = request.user # 신청자 = 로그인한 유저
 
         # 신청자 중복 신청 확인
         if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
@@ -298,6 +301,7 @@ class CompetitionApplyView(APIView):
         return Response(response_data, status=status.HTTP_201_CREATED)
     
 
+# 대회신청정보 조회
 class CompetitionApplyResultView(APIView):
     """
     대회 신청 결과 조회
@@ -353,3 +357,7 @@ class CompetitionApplyResultView(APIView):
                         'competitionInfo': competition_serializer.data}
 
         return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+        
