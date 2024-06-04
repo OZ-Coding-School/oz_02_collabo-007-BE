@@ -33,11 +33,11 @@ class CompetitionListSerializer(serializers.ModelSerializer):
     
     def get_status(self, obj):
         user = self.context['request'].user
-        print('유저티어:',user.tier)
 
         current_applicants_count = obj.applicants.count()
         is_waiting = current_applicants_count >= obj.max_participants
         
+        ## 대회 리스트에서 버튼 구현을 위한 조건문 로직
         ## 대회 전 / 유저의 조건에 따라 신청 가능여부 판별
         # 로그인 x 상태일 때
         if obj.status == 'before' and not user.is_authenticated:
@@ -45,7 +45,6 @@ class CompetitionListSerializer(serializers.ModelSerializer):
         # 로그인 확인
         if obj.status == 'before':
             # 유저 성별 / 실력 확인
-            #if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or user.tier != obj.tier:
             if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or obj.tier not in user.tiers.all():
                 return '신청 불가능'
             # 대기 상태 여부
@@ -105,7 +104,7 @@ class CompetitionDetailInfoSerializer(serializers.ModelSerializer):
         # 로그인 확인
         if obj.status == 'before':
             # 유저 성별 / 실력 확인
-            if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or user.tier != obj.tier:
+            if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or obj.tier not in user.tiers.all():
                 return '신청 불가능'
             # 대기 상태 여부
             elif current_applicants_count >= obj.max_participants:
