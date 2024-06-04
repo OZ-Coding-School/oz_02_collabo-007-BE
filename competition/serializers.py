@@ -33,6 +33,8 @@ class CompetitionListSerializer(serializers.ModelSerializer):
     
     def get_status(self, obj):
         user = self.context['request'].user
+        print('유저티어:',user.tier)
+
         current_applicants_count = obj.applicants.count()
         is_waiting = current_applicants_count >= obj.max_participants
         
@@ -43,7 +45,8 @@ class CompetitionListSerializer(serializers.ModelSerializer):
         # 로그인 확인
         if obj.status == 'before':
             # 유저 성별 / 실력 확인
-            if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or user.tier != obj.tier:
+            #if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or user.tier != obj.tier:
+            if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or obj.tier not in user.tiers.all():
                 return '신청 불가능'
             # 대기 상태 여부
             elif current_applicants_count >= obj.max_participants:
