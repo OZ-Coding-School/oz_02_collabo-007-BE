@@ -10,7 +10,7 @@ from django.utils.timezone import now
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from djangorestframework_camel_case.parser import CamelCaseFormParser
+from djangorestframework_camel_case.parser import CamelCaseFormParser, CamelCaseMultiPartParser
 from rest_framework.parsers import MultiPartParser, FormParser
 
 
@@ -23,6 +23,7 @@ from .serializers import CompetitionListSerializer, CompetitionDetailInfoSeriali
 from applicant_info.serializers import ApplicantInfoSerializer, CompetitionApplicantInfoSerializer
 from applicant.serializers import ApplicantSerializer, CompetitionApplicantSerializer
 from users.serializers import UserWithClubInfoSerializer
+from participant.models import Participant
 
 
 
@@ -107,7 +108,7 @@ class CompetitionApplyView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
-    parser_classes = (CamelCaseFormParser, MultiPartParser)
+    parser_classes = (CamelCaseFormParser, CamelCaseMultiPartParser)
     
     def post(self, request, pk):
         
@@ -122,10 +123,10 @@ class CompetitionApplyView(APIView):
             return Response({'error': '제출된 코드가 유효하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
         applicant = request.user 
-        
+
         # 신청자 중복 신청 확인
-        if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
-            return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
+        # if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
+        #     return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 진행 중인 대회 신청시 에러메세지
         if competition.status == 'during':
@@ -353,5 +354,29 @@ class CompetitionApplyResultView(APIView):
         response_data = {'applicants':applicants, 
                         'applicantsInfo':applicant_info_serializer.data, 
                         'competitionInfo': competition_serializer.data}
+
+        return Response(response_data, status=status.HTTP_200_OK)
+    
+
+# 신청한 대회 조회
+class HomeCompetitionListView(APIView):
+
+    permission_classes=[IsAuthenticated]
+
+    def get(self, request):
+
+        user = request.user
+
+        # 쿼리 파라미터로 4개씩 입력하지 않으면 전체를 가져오기
+        count = request.query_params.get('count', None)
+        count = int(count) if count and count.isdigit() else None # count int타입으로
+
+        # 대회가 아직 시작하지 않았고, 참가 신청을 했으면 (대기X) 참가 예정 대회
+        before_my_competition = Competition.objects.filter(status='before', Participant_participantinfo__user=user)[:count]
+        # 대회가 시작되었고, 참가 신청을 했으면 최근 참가 대회
+        during_my_competition = Competition.objects.filter(status='during', Participant_participantinfo__user=user)[:count]
+        # 나머지 대회
+
+        response_data = {before_my_competition, during_my_competition}
 
         return Response(response_data, status=status.HTTP_200_OK)
