@@ -6,6 +6,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.db import transaction
 from datetime import timedelta
 from django.utils.timezone import now
+from django.shortcuts import get_object_or_404
 
 
 from drf_yasg.utils import swagger_auto_schema
@@ -358,3 +359,38 @@ class CompetitionApplyResultView(APIView):
                         'applicant_info :', applicant_info_serializer.data, 
                         'competition :', competition_serializer.data], 
                         status=status.HTTP_200_OK)
+
+
+
+class CompetitionCancelView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        # 신청 정보 변수 생성
+        applicant_info = get_object_or_404(ApplicantInfo, pk=pk)
+
+        # 현재 로그인한 사용자가 해당 ApplicantInfo에 속한 Applicant 중 하나인지 확인
+        if not Applicant.objects.filter(applicant_info=applicant_info, user=request.user).exists():
+            return Response({'error': '이 작업을 수행할 권한이 없습니다.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # 사용자가 취소할 수 있는 상태인지 확인
+        if applicant_info.status in ['사용자 취소', '관리자 취소']:
+            return Response({'error': '이미 취소 처리된 신청입니다.'}, status=status.HTTP_409_CONFLICT)
+        
+        # 신청 상태를 '사용자 취소'로 업데이트
+        applicant_info.status = '사용자 취소'
+        applicant_info.save()
+        
+        waiting_applicant = ApplicantInfo.objects.all().order_by('waiting_number').first()
+        print(waiting_applicant)
+        if waiting_applicant:
+            # 대기자를 참가자로 변경
+            if waiting_applicant.status == '입금 대기':
+                waiting_applicant.waiting_number = None
+            elif waiting_applicant.status == '참가 대기중':
+                waiting_applicant.waiting_number = None
+                waiting_applicant.status = '참가 완료'
+
+        # 업데이트된 정보를 반환
+        serializer = ApplicantInfoSerializer(applicant_info)
+        return Response(serializer.data, status=status.HTTP_200_OK)

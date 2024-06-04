@@ -4,12 +4,14 @@ from competition.models import Competition
 
 class ApplicantInfo(TimeStampedModel, SoftDeleteModel):
     DEPOSIT_CHOICES = (
-        ('un_paid', '입금 전'),
-        ('paid', '입금확인'),
-        ('canceled', '취소'),
+        ('입금 대기', '입금 대기'),
+        ('참가 대기중', '참가 대기중'),
+        ('참가 완료', '참가 완료'),
+        ('사용자 취소', '사용자 취소'),
+        ('관리자 취소', '관리자 취소'),
     )
     id = models.AutoField(primary_key=True)
-    status = models.CharField(max_length=15, choices=DEPOSIT_CHOICES, default='un_paid')
+    status = models.CharField(max_length=15, choices=DEPOSIT_CHOICES, default='입금 대기')
     expired_date = models.DateTimeField(null=True)
     competition = models.ForeignKey(Competition, on_delete=models.CASCADE, related_name='applicants')
     waiting_number = models.IntegerField(blank=True, null=True)
