@@ -15,4 +15,4 @@ class CompetitionApplicantInfoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ApplicantInfo
-        fields = ['expired_date','waiting_number']
+        fields = ['id','expired_date','waiting_number']
