@@ -39,7 +39,7 @@ class Competition(TimeStampedModel, SoftDeleteModel):
     site_link = models.TextField(db_column='siteLink', blank=True, null=True)  
     image_url = models.ForeignKey(ImageUrl, on_delete=models.DO_NOTHING, blank=True, null=True)
     match_type = models.ForeignKey(MatchType, models.DO_NOTHING)
-    tier = models.ForeignKey(Tier, models.DO_NOTHING)
+    tier = models.ForeignKey(Tier, models.DO_NOTHING, blank=True, null=True)
     max_participants = models.IntegerField(default=0)
     deposit_date = models.IntegerField(null=True, help_text="입금기한_신청기준 몇일")
     competition_type = models.CharField(max_length=10, choices=TYPE_CHOICES) # 추가

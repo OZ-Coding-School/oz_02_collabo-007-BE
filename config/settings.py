@@ -41,6 +41,7 @@ CUSTOM_APPS = [
     'club.apps.ClubConfig',
     'club_applicant.apps.ClubApplicantConfig',
     'tier.apps.TierConfig',
+    'point.apps.PointConfig',
     'image_url.apps.ImageUrlConfig',
     'matchtype.apps.MatchTypeConfig',
     'competition.apps.CompetitionConfig',

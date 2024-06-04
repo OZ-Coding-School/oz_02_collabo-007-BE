@@ -7,7 +7,7 @@ class Tier(TimeStampedModel, SoftDeleteModel):
     match_type = models.ForeignKey(MatchType, models.DO_NOTHING)
     
     def __str__(self):
-        return self.name
+        return f'{self.name} ({self.match_type})'
 
     class Meta:
         db_table = 'tier'

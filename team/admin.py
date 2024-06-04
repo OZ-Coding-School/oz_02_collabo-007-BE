@@ -3,7 +3,7 @@ from .models import Team
 
 
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'image_url')
+    list_display = ('id', 'name', 'club', 'image_url')
 
 
 admin.site.register(Team, TeamAdmin)
