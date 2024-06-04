@@ -10,8 +10,7 @@ from django.utils.timezone import now
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from djangorestframework_camel_case.parser import CamelCaseFormParser
-from rest_framework.parsers import MultiPartParser, FormParser
+from djangorestframework_camel_case.parser import CamelCaseFormParser, CamelCaseMultiPartParser
 
 
 from .models import Competition
@@ -19,7 +18,7 @@ from users.models import CustomUser
 from matchtype.models import MatchType
 from applicant_info.models import ApplicantInfo
 from applicant.models import Applicant
-from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplyInfoSerializer, CompetitionApplySerializer
+from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplySerializer
 from applicant_info.serializers import ApplicantInfoSerializer, CompetitionApplicantInfoSerializer
 from applicant.serializers import ApplicantSerializer, CompetitionApplicantSerializer
 from users.serializers import UserWithClubInfoSerializer
@@ -107,7 +106,7 @@ class CompetitionApplyView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
-    parser_classes = (CamelCaseFormParser, MultiPartParser)
+    parser_classes = (CamelCaseFormParser, CamelCaseMultiPartParser)
     
     def post(self, request, pk):
         
@@ -122,7 +121,7 @@ class CompetitionApplyView(APIView):
             return Response({'error': '제출된 코드가 유효하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
         applicant = request.user 
-        
+
         # 신청자 중복 신청 확인
         if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
             return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
