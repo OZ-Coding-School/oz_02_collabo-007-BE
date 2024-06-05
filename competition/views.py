@@ -127,8 +127,8 @@ class CompetitionApplyView(APIView):
         applicant = request.user 
         
         # 신청자 중복 신청 확인
-        # if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
-        #     return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
+        if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
+            return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 진행 중인 대회 신청시 에러메세지
         if competition.status == 'during':
@@ -186,8 +186,8 @@ class CompetitionApplyView(APIView):
             
             
             # 파트너 중복 신청 확인
-            # elif partner_id and Applicant.objects.filter(applicant_info__competition=competition, user_id=partner_id).exists():
-            #     return Response({'error': '선택하신 파트너는 이미 해당 대회를 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+            elif partner_id and Applicant.objects.filter(applicant_info__competition=competition, user_id=partner_id).exists():
+                return Response({'error': '선택하신 파트너는 이미 해당 대회를 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
             
             return self.handle_doubles(request, competition, applicant, partner)
         
