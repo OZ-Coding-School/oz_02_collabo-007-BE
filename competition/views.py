@@ -19,11 +19,12 @@ from users.models import CustomUser
 from matchtype.models import MatchType
 from applicant_info.models import ApplicantInfo
 from applicant.models import Applicant
-from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplyInfoSerializer, CompetitionApplySerializer
+from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplySerializer, MyCompetitionSerializer
 from applicant_info.serializers import ApplicantInfoSerializer, CompetitionApplicantInfoSerializer
 from applicant.serializers import ApplicantSerializer, CompetitionApplicantSerializer
 from users.serializers import UserWithClubInfoSerializer
 from participant.models import Participant
+from participant_info.models import ParticipantInfo
 
 
 
@@ -301,6 +302,7 @@ class CompetitionApplyView(APIView):
         return Response(response_data, status=status.HTTP_201_CREATED)
     
 
+## 대회 신청 결과 조회
 class CompetitionApplyResultView(APIView):
     """
     대회 신청 결과 조회
@@ -328,10 +330,8 @@ class CompetitionApplyResultView(APIView):
 
             applicant1_serializer = CompetitionApplicantSerializer(applicant_1)
             
-            applicants = applicant1_serializer.data
+            applicants = [applicant1_serializer.data] # 단식 신청 조회 시 리스트로 가져오도록 수정
 
-            
-                
         # 복식 대회의 경우
         else : 
             try :
@@ -358,25 +358,107 @@ class CompetitionApplyResultView(APIView):
         return Response(response_data, status=status.HTTP_200_OK)
     
 
-# 신청한 대회 조회
-class HomeCompetitionListView(APIView):
+# 참가 신청한 대회 조회
+class MyCompetitionListView(APIView):
+    """
+    참가 신청한 대회 조회
+    """
 
     permission_classes=[IsAuthenticated]
 
     def get(self, request):
 
         user = request.user
+        participant_competitions = Participant.objects.filter(user=user).values_list('participant_info__competition', flat=True)
+        applicant_competitions = Applicant.objects.filter(user=user).values_list('applicant_info__competition', flat=True)
 
-        # 쿼리 파라미터로 4개씩 입력하지 않으면 전체를 가져오기
-        count = request.query_params.get('count', None)
-        count = int(count) if count and count.isdigit() else None # count int타입으로
 
-        # 대회가 아직 시작하지 않았고, 참가 신청을 했으면 (대기X) 참가 예정 대회
-        before_my_competition = Competition.objects.filter(status='before', Participant_participantinfo__user=user)[:count]
-        # 대회가 시작되었고, 참가 신청을 했으면 최근 참가 대회
-        during_my_competition = Competition.objects.filter(status='during', Participant_participantinfo__user=user)[:count]
-        # 나머지 대회
+        # 쿼리 파라미터로 count 받기
+        # 쿼리 파라미터로 status 받기 
+        competition_count = request.query_params.get('count', None)
+        comeptition_status = request.query_params.get('status', None)
 
-        response_data = {before_my_competition, during_my_competition}
+        # count type (str -> int)
+        if competition_count is not None:
+            competition_count = int(competition_count)
 
-        return Response(response_data, status=status.HTTP_200_OK)
+
+        # 참가 신청한 대회 - 진행전 - 대기포함
+        before_list = Competition.objects.filter(
+            status='before',
+            id__in=applicant_competitions 
+        ).order_by('start_date')
+
+        before_my_competitions = MyCompetitionSerializer(before_list, many=True, context={'request': request}).data
+
+
+
+        # 참가 신청한 대회 - 진행중 - 대기 미포함
+        during_list = Competition.objects.filter(
+            status='during',
+            id__in=participant_competitions
+        ).order_by('-start_date')
+
+        during_my_competitions = MyCompetitionSerializer(during_list, many=True, context={'request': request}).data
+
+        # 참가 신청한 대회 - 종료 - 대기 미포함
+        ended_list = Competition.objects.filter(
+            status='ended',
+            id__in=participant_competitions
+        ).order_by('-start_date')
+
+        ended_my_competitions = MyCompetitionSerializer(ended_list, many=True, context={'request': request}).data
+
+
+        
+        user_tiers = user.tiers.all()
+
+        # 신청 가능한 대회 중 시작되지 않은 대회
+        not_apply_list = Competition.objects.filter(
+            status='before', tier__in=user_tiers).exclude(id__in=applicant_competitions).order_by('start_date')
+
+
+        not_apply_competitions = MyCompetitionSerializer(not_apply_list, many=True, context={'request': request}).data
+
+        # 진행 전인 대회
+        if comeptition_status == 'before':
+            competition_list = before_my_competitions[:competition_count] if competition_count else before_my_competitions
+
+            if not competition_list:
+                return Response({'detail':'진행 전인 대회가 없습니다.'}, status=status.HTTP_200_OK)
+
+        # 진행 중인 대회
+        elif comeptition_status == 'during':
+            competition_list = during_my_competitions[:competition_count] if competition_count else during_my_competitions
+
+            if not competition_list:
+                return Response({'detail':'진행 중인 대회가 없습니다.'},status=status.HTTP_200_OK)
+
+        # 종료한 대회
+        elif comeptition_status == 'ended':
+            competition_list = ended_my_competitions[:competition_count] if competition_count else ended_my_competitions
+
+            if not competition_list:
+                return Response({'detail':'종료한 대회가 없습니다.'}, status=status.HTTP_200_OK)
+
+        # 참가 신청하지 않은 대회
+        elif comeptition_status == 'noapply':
+            competition_list = not_apply_competitions[:competition_count] if competition_count else not_apply_competitions
+                
+            if not competition_list:
+                return Response({'detail':'신청 가능한 대회를 불러옵니다.'}, status=status.HTTP_200_OK)
+            
+        # status 미입력시 신청한 전체 대회 목록
+        else:
+            from datetime import datetime
+
+            competition_list = before_my_competitions+during_my_competitions+ended_my_competitions
+            
+            #competition_list는 직렬화된 데이터라 start_date는 문자열인 상태 -> 문자열을 파싱하여 날짜 형식으로 변환한 후 정렬
+            competition_list = sorted(competition_list, key=lambda x: datetime.strptime(x['start_date'], '%Y-%m-%dT%H:%M:%S'))
+
+            if not competition_list :
+                return Response({'detail':'아직 참가신청한 대회가 없습니다.'}, status=status.HTTP_200_OK)
+        
+        
+        return Response(competition_list, status=status.HTTP_200_OK)

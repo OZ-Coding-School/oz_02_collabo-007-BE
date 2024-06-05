@@ -9,7 +9,7 @@ class Participant(TimeStampedModel, SoftDeleteModel):
     applicant_info = models.ForeignKey(ApplicantInfo, on_delete=models.CASCADE)
     
     def __str__(self):
-        return f"{self.user.username} / {self.applicant_info.competition.name} / {self.applicant_info.id}"    
+        return f"유저:{self.user.username} / 신청한 대회:{self.applicant_info.competition.name} / 신청정보:{self.applicant_info.id}"    
     
     
     class Meta:
