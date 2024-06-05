@@ -7,6 +7,7 @@ from image_url.utils import S3ImageUploader
 from club.serializers import ClubDetailSerializer
 from club_applicant.models import ClubApplicant
 from team.serializers import TeamDetailSerializer
+from club_applicant.serializers import ClubApplicantSerializer
 
 
 User = get_user_model()
@@ -232,18 +233,72 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 # 유저 상세정보 serializer
 class UserInfoSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()  # image_url을 메서드 필드로 변경
-    club = ClubDetailSerializer(read_only=True)
-    team = TeamDetailSerializer(read_only=True)
+    image_url = serializers.SerializerMethodField()
+    tiers = serializers.SerializerMethodField()
+    club = serializers.SerializerMethodField()
+    team = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'phone', 'gender', 'birth', 'image_url', 'club', 'team'] # 티어 추가해야함
+        fields = ['id', 'username', 'phone', 'gender', 'birth', 'image_url', 'tiers', 'club', 'team'] # 티어 추가해야함
 
     def get_image_url(self, obj):
         if obj.image_url:
             return obj.image_url.image_url
         return None
+    
+    def get_tiers(self, obj):
+        tiers = obj.tiers.all()  # users-tiers 다대다 관계라 연결된 모든 티어를 가져옴
+        return [{
+            'id': tier.id,
+            'name': tier.name,
+            'match_type_detail': {
+                'gender': tier.match_type.gender,
+                'type': tier.match_type.type
+            }
+        } for tier in tiers]
+
+
+    def get_club(self, obj):
+        # 유저가 클럽 오브젝트를 가지고 있는 경우
+        if obj.club:
+            club = obj.club
+            return {
+                'id': club.id,
+                'name': club.name,
+                'image_url': club.image_url.image_url if club.image_url else None
+            }
+        # 유저가 클럽 오브젝트를 가지고 있지 않은 경우
+        else:
+            # 가장 최근의 ClubApplicant 1개만 가져옴
+            club_applicant = ClubApplicant.objects.filter(user=obj).order_by('-date_applied').first()
+            # applicant status 가 pending 상태 일 경우에만 데이터 리턴
+            if club_applicant and club_applicant.status == 'pending':
+                return {
+                    'id': club_applicant.club.id,
+                    'name': club_applicant.club.name,
+                    'image_url': club_applicant.club.image_url.image_url if club_applicant.club.image_url else None,
+                    'status': club_applicant.status,
+                    'date_applied': club_applicant.date_applied
+                }
+            else:
+                return None
+    
+    
+    
+    def get_team(self, obj):
+        if obj.team:
+            team = obj.team
+            return {
+                'id': team.id,
+                'name': team.name,
+                'image_url': team.image_url.image_url if team.image_url else None       
+            }
+            
+        return None
+
+
+
 
 
 
