@@ -36,6 +36,7 @@ class CompetitionListSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         current_applicants_count = obj.applicants.filter(status__in=['unpaid', 'confirmed_participation'], waiting_number__isnull=True).count()
         current_waiting_applicants_count = obj.applicants.filter(status__in=['unpaid', 'pending_participation'], waiting_number__isnull=False).count()
+
         
         ## 대회 리스트에서 버튼 구현을 위한 조건문 로직
         ## 대회 전 / 유저의 조건에 따라 신청 가능여부 판별
