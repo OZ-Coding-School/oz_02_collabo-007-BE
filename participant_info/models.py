@@ -4,7 +4,6 @@ from competition.models import Competition
 
 class ParticipantInfo(TimeStampedModel, SoftDeleteModel):
     id = models.AutoField(primary_key=True)
-    registered_date = models.DateTimeField(null=True)
     competition = models.ForeignKey(Competition, on_delete=models.CASCADE) 
     
     

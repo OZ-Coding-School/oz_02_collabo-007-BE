@@ -6,11 +6,13 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.db import transaction
 from datetime import timedelta
 from django.utils.timezone import now
+from django.shortcuts import get_object_or_404
 
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from djangorestframework_camel_case.parser import CamelCaseFormParser, CamelCaseMultiPartParser
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 from .models import Competition
@@ -18,7 +20,9 @@ from users.models import CustomUser
 from matchtype.models import MatchType
 from applicant_info.models import ApplicantInfo
 from applicant.models import Applicant
-from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplySerializer
+from participant.models import Participant
+from participant_info.models import ParticipantInfo
+from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplyInfoSerializer, CompetitionApplySerializer
 from applicant_info.serializers import ApplicantInfoSerializer, CompetitionApplicantInfoSerializer
 from applicant.serializers import ApplicantSerializer, CompetitionApplicantSerializer
 from users.serializers import UserWithClubInfoSerializer
@@ -121,10 +125,10 @@ class CompetitionApplyView(APIView):
             return Response({'error': '제출된 코드가 유효하지 않습니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
         applicant = request.user 
-
+        
         # 신청자 중복 신청 확인
-        if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
-            return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
+        # if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
+        #     return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 진행 중인 대회 신청시 에러메세지
         if competition.status == 'during':
@@ -182,8 +186,8 @@ class CompetitionApplyView(APIView):
             
             
             # 파트너 중복 신청 확인
-            elif partner_id and Applicant.objects.filter(applicant_info__competition=competition, user_id=partner_id).exists():
-                return Response({'error': '선택하신 파트너는 이미 해당 대회를 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+            # elif partner_id and Applicant.objects.filter(applicant_info__competition=competition, user_id=partner_id).exists():
+            #     return Response({'error': '선택하신 파트너는 이미 해당 대회를 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
             
             return self.handle_doubles(request, competition, applicant, partner)
         
@@ -348,9 +352,72 @@ class CompetitionApplyResultView(APIView):
 
         applicant_info_serializer = CompetitionApplicantInfoSerializer(applicant_infos)
         competition_serializer = CompetitionApplySerializer(competition)
-
+        
         response_data = {'applicants':applicants, 
                         'applicantsInfo':applicant_info_serializer.data, 
                         'competitionInfo': competition_serializer.data}
 
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+class CompetitionCancelView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        # 신청 정보 변수 생성
+        applicant_info = get_object_or_404(ApplicantInfo, pk=pk)
+
+        # 현재 로그인한 사용자가 해당 ApplicantInfo에 속한 Applicant 중 하나인지 확인
+        if not Applicant.objects.filter(applicant_info=applicant_info, user=request.user).exists():
+            return Response({'error': '이 작업을 수행할 권한이 없습니다.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # 사용자가 취소할 수 있는 상태인지 확인
+        if applicant_info.status in ['user_canceled', 'admin_cancelled']:
+            return Response({'error': '이미 취소 처리된 신청입니다.'}, status=status.HTTP_409_CONFLICT)      
+        
+        participants = []
+        # 참가 완료 상태인 경우 소프트 딜리트 수행
+        if applicant_info.status == 'confirmed_participation':
+            user_participant = Participant.objects.filter(participant_info__competition=applicant_info.competition, user=request.user, is_deleted=False).first()
+            print(f"user_participant: {user_participant}")
+            partner_participant = Participant.objects.filter(participant_info=user_participant.participant_info, is_deleted=False).exclude(user=request.user).first()
+            print(f"partner_participant: {partner_participant}")
+            if user_participant:
+                participants.append(user_participant)
+                if partner_participant:
+                    participants.append(partner_participant)
+
+        
+            
+            for participant in participants:
+                # 참가정보 삭제(소프트 딜리트)
+                participant.participant_info.is_deleted = True
+                participant.participant_info.save()
+
+                participant.is_deleted = True
+                participant.save()
+        
+        # 신청 상태를 '사용자 취소'로 업데이트
+        applicant_info.status = 'user_canceled'
+        applicant_info.save()
+        
+        # 대기 중인 신청자 중 대기 순번이 높은 신청자를 찾음
+        waiting_applicant = ApplicantInfo.objects.filter(waiting_number__isnull=False).order_by('waiting_number').first()
+        
+        if waiting_applicant:
+            # 대기자를 참가자로 변경
+            if waiting_applicant.status == 'unpaid': # 대기자가 '입금 대기' 상태였을 경우 waiting_number만 None 처리
+                waiting_applicant.waiting_number = None
+            elif waiting_applicant.status == 'pending_participation': # 대기자가 '참가 대기중' 상태였을 경우 waiting_number을 None 처리, '참가 완료'로 상태 변경
+                waiting_applicant.waiting_number = None
+                waiting_applicant.status = 'confirmed_participation'
+            waiting_applicant.save()
+
+        # 업데이트된 정보를 반환
+        response_data = {
+            'status': '사용자 취소 완료',
+            'competition': applicant_info.competition.name
+        }
+        
         return Response(response_data, status=status.HTTP_200_OK)
