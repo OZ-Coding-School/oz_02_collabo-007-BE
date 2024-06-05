@@ -171,3 +171,15 @@ class CompetitionStatusSerializer(serializers.ModelSerializer):
     class Meta:
         fields = ['name', 'match_type_details', 'tier', ]
 
+
+## 참가 신청한 대회 정보 
+class MyCompetitionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Competition
+        fields = ['name', 'status','start_date', 'tier', 'location', 'image_url']
+    '''
+    필요한 데이터 필드 추가 예정
+    : 현황{유저가 속한 대진표, 경기 코트, 대회 결과 보기}
+    '''
+
