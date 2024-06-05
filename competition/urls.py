@@ -1,6 +1,5 @@
 from django.urls import path
 from .views import CompetitionListView, CompetitionDetailView, CompetitionApplyView, PartnerSearchView, CompetitionApplyResultView
-# CompetitionApplyAPIView
 
 urlpatterns = [
     path('competitions/', CompetitionListView.as_view(), name='competitions'),
