@@ -1,14 +1,16 @@
 from club.models import Club
-from custom_admin.club.serializers import ClubListSerializer, ClubSerializer, MemberSerializer, RegistrationSerializer, TeamSerializer, User
+from custom_admin.club.serializers import ApplicationSerializer, ClubListSerializer, ClubSerializer, MemberSerializer, TeamSerializer, User
 from custom_admin.pagination import StandardResultsSetPagination
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets, status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action, permission_classes, authentication_classes
+from custom_admin.service.club_service import ClubService
 from custom_admin.service.image_service import ImageService
 from rest_framework.response import Response
 from django.db.models import Count
+from club_applicant.models import ClubApplicant
 
 
 from team.models import Team
@@ -226,30 +228,69 @@ class ClubViewSet(viewsets.ModelViewSet):
         operation_summary='클럽 가입 신청 목록 조회',
         operation_description='클럽 가입 신청 목록을 조회합니다.',
         responses={
-            200: RegistrationSerializer(many=True),
+            200: ApplicationSerializer(many=True),
             401: 'Authentication Error',
             403: 'Permission Denied',
             404: 'Not Found'
         }
     )
-    @swagger_auto_schema(
-        method='put',
-        operation_summary='클럽 가입 신청 승인',
-        operation_description='클럽 가입 신청을 승인합니다.',
-        responses={
-            200: RegistrationSerializer,
-            400: 'Bad Request',
-            401: 'Authentication Error',
-            403: 'Permission Denied',
-        }
-    )
-    @action(detail=True, methods=['get', 'put'], url_name='registrations', url_path='registrations')
-    def registrations(self, request, *args, **kwargs):
+    @action(detail=True, methods=['get'], url_name='applications', url_path='applications')
+    def applications(self, request, *args, **kwargs):
         club = self.get_object()
 
         if request.method == 'GET':
-            registrations = club.applicants.filter(status='pending').select_related('user')
-            return Response(RegistrationSerializer(registrations, many=True).data, status=status.HTTP_200_OK)
+            applications = club.applicants.filter(
+                status='pending').select_related('user', 'club')
+            return Response(ApplicationSerializer(applications, many=True).data, status=status.HTTP_200_OK)
 
-        if request.method == 'PUT':
-            return self._update_registration(request)
+    @swagger_auto_schema(
+        method='post',
+        operation_summary='클럽 가입 신청 승인',
+        operation_description='클럽 가입 신청을 승인합니다.',
+        responses={
+            200: 'Success',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['post'], url_name='accept_application', url_path='applications/(?P<application_id>\d+)/accept')
+    def accept_application(self, request, *args, **kwargs):
+        club_service = ClubService()
+        try:
+            application_id = kwargs.get('application_id')
+            application = ClubApplicant.objects.get(
+                id=application_id, status='pending')
+            club_service.accept_club_application(application)
+            return Response({'detail': '가입 신청이 수락되었습니다.'}, status=status.HTTP_200_OK)
+        except ClubApplicant.DoesNotExist:
+            return Response({'error': '가입 신청 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @swagger_auto_schema(
+        method='post',
+        operation_summary='클럽 가입 신청 거부',
+        operation_description='클럽 가입 신청을 거부합니다.',
+        responses={
+            200: 'Success',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['post'], url_name='reject_application', url_path='applications/(?P<application_id>\d+)/reject')
+    def reject_application(self, request, *args, **kwargs):
+        club_service = ClubService()
+        try:
+            application_id = kwargs.get('application_id')
+            application = ClubApplicant.objects.get(
+                id=application_id, status='pending')
+            club_service.reject_club_application(application)
+            return Response({'detail': '가입 신청이 거절되었습니다.'}, status=status.HTTP_200_OK)
+        except ClubApplicant.DoesNotExist:
+            return Response({'error': '가입 신청 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -62,8 +62,9 @@ class MemberSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'phone', 'username', 'team')
 
 
-class RegistrationSerializer(serializers.ModelSerializer):
+class ApplicationSerializer(serializers.ModelSerializer):
     user = MemberSerializer(read_only=True)
+    club = ClubListSerializer(read_only=True)
 
     class Meta:
         model = ClubApplicant
