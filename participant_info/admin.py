@@ -1,3 +1,7 @@
 from django.contrib import admin
+from .models import ParticipantInfo
 
-# Register your models here.
+class ParticipantInfoAdmin(admin.ModelAdmin):
+    list_display = ('id','competition')
+    ordering = ('-id',)
+admin.site.register(ParticipantInfo)
