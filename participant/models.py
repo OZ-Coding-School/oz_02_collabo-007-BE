@@ -6,10 +6,10 @@ from users.models import CustomUser
 class Participant(TimeStampedModel, SoftDeleteModel):
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-    participant_info = models.ForeignKey(ParticipantInfo,related_name='participant', on_delete=models.CASCADE,default=1)
+    participant_info = models.ForeignKey(ParticipantInfo, on_delete=models.CASCADE)
     
     def __str__(self):
-        return f"{self.user.username} / {self.participant_info.competition.name} / {self.participant_info.id}"
+        return f"{self.user.username} / {self.participant_info.competition.name} / {self.participant_info.id}"    
     
     
     class Meta:

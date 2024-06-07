@@ -284,8 +284,12 @@ class MyProfileView(APIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_summary='로그인한 유저 정보 조회',
-        operation_description='로그인한 유저 정보를 제공하는 API',
+        operation_summary='로그인한 유저 정보를 제공하는 API',
+        operation_description='로그인한 자기 자신의 정보를 조회하는 API 입니다.',
+        responses={
+            200: UserInfoSerializer(many=True),
+            401: 'Authentication Error'
+        }
     )
 
     def get(self, request, *args, **kwargs):
