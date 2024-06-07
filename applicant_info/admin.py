@@ -12,7 +12,8 @@ class ApplicantInfoAdmin(admin.ModelAdmin):
 
     def applicant_name(self, obj):
         applicant = Applicant.objects.filter(applicant_info=obj).first()
-        return applicant.user.username
+        if applicant:
+            return applicant.user.username
 
     applicant_name.short_description = 'applicant name'
 
