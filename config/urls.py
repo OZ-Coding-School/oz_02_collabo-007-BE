@@ -28,7 +28,8 @@ urlpatterns = [
     path('api/v1/', include('team.urls')),
     path('api/v1/', include('competition.urls')),
     path('api/v1/', include('point.urls')),
-]
+    path('api/v1/', include('match.urls')),
+    ]
 
 if settings.DEBUG:
     urlpatterns += [
