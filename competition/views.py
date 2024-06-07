@@ -324,23 +324,27 @@ class CompetitionApplyResultView(APIView):
         if competition.match_type.type == 'single':
         
             try :
-                applicant_1 = Applicant.objects.get(applicant_info__competition=competition)
+                applicant_1 = Applicant.objects.get(applicant_info__competition=competition,user=user)
             except Applicant.DoesNotExist :
                 return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
 
             applicant1_serializer = CompetitionApplicantSerializer(applicant_1)
             
-            applicants = applicant1_serializer.data
+            applicants = [applicant1_serializer.data]
 
             
                 
         # 복식 대회의 경우
+        # applicant_info fk가 똑같은 유저
         else : 
             try :
-                applicant_1, applicant_2 = Applicant.objects.filter(applicant_info__competition=competition)
+                applicant_1 = Applicant.objects.get(applicant_info__competition=competition,user=user)
+        
             except Applicant.DoesNotExist :
                 return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
-        
+
+            find_info = applicant_1.applicant_info
+            applicant_1,applicant_2 = Applicant.objects.filter(applicant_info=find_info)
             applicant1_serializer = CompetitionApplicantSerializer(applicant_1)
             applicant2_serializer = CompetitionApplicantSerializer(applicant_2)
 
@@ -360,8 +364,11 @@ class CompetitionApplyResultView(APIView):
         return Response(response_data, status=status.HTTP_200_OK)
 
 
-
+## 신청 취소
 class CompetitionCancelView(APIView):
+    """
+    대회 신청 취소
+    """
     permission_classes = [IsAuthenticated]
 
     def put(self, request, pk):
@@ -402,7 +409,7 @@ class CompetitionCancelView(APIView):
         applicant_info.status = 'user_canceled'
         applicant_info.save()
         
-        # 대기 중인 신청자 중 대기 순번이 높은 신청자를 찾음
+        # 대기 중인 신청자 중 대기 순번이 빠른 신청자를 찾음
         waiting_applicant = ApplicantInfo.objects.filter(waiting_number__isnull=False).order_by('waiting_number').first()
         
         if waiting_applicant:

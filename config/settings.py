@@ -43,12 +43,13 @@ CUSTOM_APPS = [
     'tier.apps.TierConfig',
     'point.apps.PointConfig',
     'image_url.apps.ImageUrlConfig',
+    'match.apps.MatchConfig',
     'matchtype.apps.MatchTypeConfig',
     'competition.apps.CompetitionConfig',
     'applicant.apps.ApplicantConfig',
     'applicant_info.apps.ApplicantInfoConfig',
     'participant.apps.ParticipantConfig',
-    'participant_info.apps.ParticipantInfoConfig',
+    'set.apps.SetConfig',
     'custom_admin.apps.CustomAdminConfig',
 ]
 
