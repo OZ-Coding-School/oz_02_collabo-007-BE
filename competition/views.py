@@ -69,7 +69,7 @@ class CompetitionDetailView(APIView):
 
 
 
-# 파트너 조회
+## 파트너 조회
 class PartnerSearchView(APIView):
     """
     파트너 검색
@@ -303,6 +303,7 @@ class CompetitionApplyView(APIView):
         return Response(response_data, status=status.HTTP_201_CREATED)
     
 
+## 대회 신청 결과 조회
 class CompetitionApplyResultView(APIView):
     """
     대회 신청 결과 조회
@@ -429,7 +430,8 @@ class CompetitionCancelView(APIView):
         
         return Response(response_data, status=status.HTTP_200_OK)
     
-# 참가 신청한 대회 조회
+
+## 참가 신청한 대회 조회
 class MyCompetitionListView(APIView):
     """
     참가 신청한 대회 조회
@@ -531,5 +533,5 @@ class MyCompetitionListView(APIView):
             if not competition_list :
                 return Response({'detail':'아직 참가신청한 대회가 없습니다.'}, status=status.HTTP_200_OK)
         
-        
+
         return Response(competition_list, status=status.HTTP_200_OK)
