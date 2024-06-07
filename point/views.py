@@ -1,11 +1,9 @@
 from django.utils import timezone
-from django.db.models import Sum, Window, F
-from django.db.models.functions import Rank
+from django.db.models import Sum
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from .models import Point
 from rest_framework.response import Response
@@ -45,21 +43,23 @@ class RealtimeUserRankingView(APIView):
             if gender_param:
                 queryset = queryset.filter(match_type__gender=gender_param)
             
-            # 여기까지 필터링된 queryset에 대해서 추가적으로 이름 검색
-            name_param = request.query_params.get('name')
-            if name_param:
-                queryset = queryset.filter(user__username__icontains=name_param)
-                
-            # 각 유저의 총 포인트 합산 및 내림차순 정렬 / annotate : 쿼리셋에 집계 값을 추가할 때 사용)
+            # 타입과 젠더에 따라 필터링된 쿼리셋에 대해 포인트 합산 진행
             queryset = queryset.annotate(total_points=Sum('points')).order_by('-total_points')
-            if not queryset.exists():
-                raise NotFound(detail='해당 매치 타입에 대한 랭킹이 없습니다.')
-            
-            # 순위를 계산하여 각 객체에 할당
+            # 필터링된 쿼리셋에 대하여 순위 계산
+            ranked_queryset = []
             for idx, obj in enumerate(queryset, start=1):
                 obj.rank = idx
-
-            serializer = RealtimeUserRankingSerializer(queryset, many=True)
+                ranked_queryset.append(obj)
+            
+            # 이름으로 필터링 진행
+            name_param = request.query_params.get('name')
+            if name_param:
+                ranked_queryset = [obj for obj in ranked_queryset if name_param.lower() in obj.user.username.lower()]
+            
+            if not ranked_queryset:
+                raise NotFound(detail='조건에 맞는 랭킹이 없습니다.')
+            
+            serializer = RealtimeUserRankingSerializer(ranked_queryset, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
     
         except NotFound as e:
@@ -99,24 +99,29 @@ class RealtimeTeamRankingView(APIView):
             # match_type이 'team'인 경우만 필터링
             queryset = queryset.filter(match_type__type='team')
             
-            # 쿼리 파라미터에서 'team_name'을 받아옴
-            team_name_param = request.query_params.get('name')
-            
-            # 'team_name' 파라미터가 존재하면 해당 이름을 포함하는 팀으로 필터링
-            if team_name_param:
-                queryset = queryset.filter(team__name__icontains=team_name_param)
-
-            # 각 유저의 총 포인트 합산 및 내림차순 정렬 / annotate : 쿼리셋에 집계 값을 추가할 때 사용)
+            # 각 팀의 총 포인트 합산 및 내림차순 정렬
             queryset = queryset.annotate(total_points=Sum('points')).order_by('-total_points')
             
             if not queryset.exists():
                 raise NotFound(detail='해당 매치 타입에 대한 랭킹이 없습니다.')
             
             # 순위를 계산하여 각 객체에 할당
+            ranked_queryset = []
             for idx, obj in enumerate(queryset, start=1):
                 obj.rank = idx
-
-            serializer = RealtimeTeamRankingSerializer(queryset, many=True)
+                ranked_queryset.append(obj)
+            
+            # 쿼리 파라미터에서 'team_name'을 받아옴
+            team_name_param = request.query_params.get('name')
+            
+            # 'team_name' 파라미터가 존재하면 해당 이름을 포함하는 팀으로 필터링
+            if team_name_param:
+                ranked_queryset = [obj for obj in ranked_queryset if team_name_param.lower() in obj.team.name.lower()]
+            
+            if not ranked_queryset:
+                raise NotFound(detail='해당 팀 이름에 대한 랭킹이 없습니다.')
+            
+            serializer = RealtimeTeamRankingSerializer(ranked_queryset, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except NotFound as e:
@@ -170,24 +175,24 @@ class RealtimeMyRankingView(APIView):
                 raise NotFound(detail='해당 매치타입에 대한 랭킹을 찾을 수 없습니다.')
             
             # 순위를 계산하여 각 객체에 할당
+            ranked_queryset = []
             for idx, obj in enumerate(queryset, start=1):
                 obj.rank = idx
+                ranked_queryset.append(obj)
                 
         
                 
             # 로그인 상태에 따라 my_ranking 정보를 다르게 설정
             my_ranking = None
+            user_rankings = []
             if request.user.is_authenticated:
-                user_rank = None
-                for idx, obj in enumerate(queryset, start=1):
+                for obj in ranked_queryset:
                     if obj.user == request.user:
-                        user_rank = obj
-                        user_rank.rank = idx  # 사용자의 순위를 객체에 직접 할당
-                        break
+                        user_rankings.append(obj)
                 
-                if user_rank:
+                if user_rankings:
                     # RealtimeUserRankingSerializer를 이용하여 사용자의 랭킹 정보 시리얼라이즈 진행
-                    serializer = RealtimeUserRankingSerializer(user_rank)
+                    serializer = RealtimeUserRankingSerializer(user_rankings, many=True)
                     my_ranking = serializer.data
                 else:
                     my_ranking = '참가한 대회가 없습니다.'
@@ -235,17 +240,18 @@ class RealtimeMyTeamRankingView(APIView):
                 raise NotFound(detail='해당 매치 타입에 대한 랭킹이 없습니다.')
             
             # 순위를 계산하여 각 객체에 할당
+            ranked_queryset = []
             for idx, obj in enumerate(queryset, start=1):
                 obj.rank = idx
+                ranked_queryset.append(obj)
 
             # 로그인 상태에 따라 my_team_ranking 정보를 다르게 설정
             my_team_ranking = None
             if request.user.is_authenticated:
                 team_rank = None
-                for idx, obj in enumerate(queryset, start=1):
+                for obj in ranked_queryset:
                     if obj.team == request.user.team:
                         team_rank = obj # obj가 request.user와 같은 팀에 속할 때 실행.
-                        team_rank.rank = idx  # team_rank 객체의 rank 속성에 idx 값을 할당. (idx = 순위)
                         break
                 
                 if team_rank:
