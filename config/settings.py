@@ -49,6 +49,7 @@ CUSTOM_APPS = [
     'applicant.apps.ApplicantConfig',
     'applicant_info.apps.ApplicantInfoConfig',
     'participant.apps.ParticipantConfig',
+    'participant_info.apps.ParticipantInfoConfig',
     'set.apps.SetConfig',
     'custom_admin.apps.CustomAdminConfig',
 ]
