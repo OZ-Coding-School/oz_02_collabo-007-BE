@@ -43,7 +43,6 @@ CUSTOM_APPS = [
     'club_applicant.apps.ClubApplicantConfig',
     'tier.apps.TierConfig',
     'point.apps.PointConfig',
-    'status.apps.StatusConfig',
     'image_url.apps.ImageUrlConfig',
     'match.apps.MatchConfig',
     'matchtype.apps.MatchTypeConfig',
@@ -51,7 +50,8 @@ CUSTOM_APPS = [
     'applicant.apps.ApplicantConfig',
     'applicant_info.apps.ApplicantInfoConfig',
     'participant.apps.ParticipantConfig',
-    'participant_info.apps.ParticipantInfoConfig'
+    'participant_info.apps.ParticipantInfoConfig',
+    'set.apps.SetConfig',
 ]
 
 
