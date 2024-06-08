@@ -180,10 +180,14 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
 
     matches = serializers.SerializerMethodField()
     apply_status = serializers.SerializerMethodField()
+    tier = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Competition
-        fields = ['name', 'status','start_date', 'tier', 'location', 'image_url', 'apply_status','matches']
+        fields = ['id', 'name', 'start_date', 'tier', 'total_rounds', 'total_sets', 'location', 'address', 
+                'description', 'rule', 'phone', 'site_link', 'image_url', 'status', 'apply_status','matches' ]
+        # fields = ['name', 'status', 'start_date', 'tier', 'location', 'image_url', 'apply_status','matches']
     
     # matches 필드 추가
     def get_matches(self, obj):
@@ -214,3 +218,14 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
             return applicant.applicant_info.status
         
         return None
+
+    def get_tier(self, obj):
+        if obj.tier:
+            return obj.tier.name
+        return None
+
+    def get_image_url(self, obj):
+        if obj.image_url:
+            return obj.image_url.image_url
+        return None
+
