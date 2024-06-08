@@ -5,6 +5,9 @@ from applicant.models import Applicant
 from applicant_info.models import ApplicantInfo
 from matchtype.serializers import MatchTypeSerializer
 from image_url.serializers import ImageUrlSerializer
+from match.serializers import MyCompetitionMatchSerializer
+from match.models import Match
+from django.db.models import Q
 
 
 
@@ -175,11 +178,54 @@ class CompetitionStatusSerializer(serializers.ModelSerializer):
 ## 참가 신청한 대회 정보 
 class MyCompetitionSerializer(serializers.ModelSerializer):
 
+    matches = serializers.SerializerMethodField()
+    apply_status = serializers.SerializerMethodField()
+    tier = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = Competition
-        fields = ['name', 'status','start_date', 'tier', 'location', 'image_url']
-    '''
-    필요한 데이터 필드 추가 예정
-    : 현황{유저가 속한 대진표, 경기 코트, 대회 결과 보기}
-    '''
+        fields = ['id', 'name', 'start_date', 'tier', 'total_rounds', 'total_sets', 'location', 'address', 
+                'description', 'rule', 'phone', 'site_link', 'image_url', 'status', 'apply_status','matches' ]
+        # fields = ['name', 'status', 'start_date', 'tier', 'location', 'image_url', 'apply_status','matches']
+    
+    # matches 필드 추가
+    def get_matches(self, obj):
+        # 로그인한 사용자 정보 가져오기
+        user = self.context['request'].user
+
+        # 사용자가 속한 대회에 해당하는 매치 정보 가져오기
+        matches = Match.objects.filter(
+            Q(a_team__participant__user=user) | Q(b_team__participant__user=user),
+            competition=obj
+        ).order_by('-created_at')
+
+        latest_match = matches.first()
+
+        if latest_match:
+            # 매치 정보를 시리얼화하여 반환
+            return MyCompetitionMatchSerializer(latest_match).data
+        
+        return None
+
+    # applicant_info.status도 보여주기
+    def get_apply_status(self, obj):
+        user = self.context['request'].user
+
+        applicant = Applicant.objects.filter(user=user,applicant_info__competition=obj).first()
+        
+        if applicant:
+            return applicant.applicant_info.status
+        
+        return None
+
+    def get_tier(self, obj):
+        if obj.tier:
+            return obj.tier.name
+        return None
+
+    def get_image_url(self, obj):
+        if obj.image_url:
+            return obj.image_url.image_url
+        return None
 

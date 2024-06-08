@@ -69,7 +69,7 @@ class CompetitionDetailView(APIView):
 
 
 
-# 파트너 조회
+## 파트너 조회
 class PartnerSearchView(APIView):
     """
     파트너 검색
@@ -98,9 +98,43 @@ class PartnerSearchView(APIView):
         
         # 검색어에 따라 사용자 필터링
         partners = CustomUser.objects.filter(username__icontains=search_query)
-        serializer = UserWithClubInfoSerializer(partners, many=True)
         
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        competition = Competition.objects.get(pk=pk)
+
+        partner_list = []
+
+        for partner in partners:
+            status_message = self.check_partner_eligibility(partner, competition)
+            partner_info = UserWithClubInfoSerializer(partner).data
+            partner_info['application_status'] = status_message
+            partner_list.append(partner_info)
+
+        return Response(partner_list, status=status.HTTP_200_OK)
+
+    # 파트너의 신청 가능 상태 확인 함수
+    def check_partner_eligibility(self, partner, competition):
+        
+        # 파트너 중복 신청 확인
+        duplicates = Applicant.objects.filter(applicant_info__competition=competition, user=partner).order_by('-created_at').first()
+        if duplicates:
+            duplicates_status = duplicates.applicant_info.status
+            if 'user_canceled' not in duplicates_status:
+                if 'admin_canceled' in duplicates_status:
+                    return False
+                return False
+
+        # 파트너 성별 확인
+        if competition.match_type.gender != 'mix' and competition.match_type.gender != partner.gender:
+            return False
+
+        # 파트너 티어 확인
+        if competition.tier not in partner.tiers.all():
+            return False
+
+        # 모든 조건을 통과하면 신청 가능
+        return True
+
+
 
 
 ## 대회신청
@@ -319,6 +353,7 @@ class CompetitionApplyView(APIView):
         return Response(response_data, status=status.HTTP_201_CREATED)
     
 
+## 대회 신청 결과 조회
 class CompetitionApplyResultView(APIView):
     """
     대회 신청 결과 조회
@@ -445,7 +480,8 @@ class CompetitionCancelView(APIView):
         
         return Response(response_data, status=status.HTTP_200_OK)
     
-# 참가 신청한 대회 조회
+
+## 참가 신청한 대회 조회
 class MyCompetitionListView(APIView):
     """
     참가 신청한 대회 조회
@@ -547,5 +583,5 @@ class MyCompetitionListView(APIView):
             if not competition_list :
                 return Response({'detail':'아직 참가신청한 대회가 없습니다.'}, status=status.HTTP_200_OK)
         
-        
+
         return Response(competition_list, status=status.HTTP_200_OK)
