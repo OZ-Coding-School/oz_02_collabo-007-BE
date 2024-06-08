@@ -4,12 +4,13 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from applicant_info.models import ApplicantInfo
 from competition.models import Competition
-from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, ParticipantInfoSerializer
+from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchSerializer, ParticipantInfoSerializer
 from custom_admin.pagination import StandardResultsSetPagination
 from custom_admin.service.competition_service import CompetitionService
 from custom_admin.service.image_service import ImageService
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Prefetch, Exists, OuterRef
+from match.models import Match
 from participant_info.models import ParticipantInfo
 from payments.models import Payment
 
@@ -243,4 +244,26 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         )
 
         serializer = ParticipantInfoSerializer(participant_infos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='대회 경기 목록 조회',
+        operation_description='대회 경기 목록을 조회합니다.',
+        responses={
+            200: MatchSerializer(many=True),
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['get'], url_path='matches', url_name='competition-matches')
+    def matches(self, request, pk=None):
+        competition = self.get_object()
+        matches = Match.objects.filter(competition=competition).select_related(
+            'a_team', 'b_team', 'winner_id'
+        ).prefetch_related(
+            'a_team__participants', 'b_team__participants', 'winner_id__participants', 'a_team__participants__user', 'b_team__participants__user', 'winner_id__participants__user'
+        )
+
+        serializer = MatchSerializer(matches, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

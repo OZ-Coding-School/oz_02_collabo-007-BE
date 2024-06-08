@@ -7,6 +7,7 @@ from participant.models import Participant
 from participant_info.models import ParticipantInfo
 from tier.models import Tier
 from users.models import CustomUser
+from match.models import Match
 
 
 class CompetitionListSerializer(serializers.ModelSerializer):
@@ -136,3 +137,23 @@ class ParticipantInfoSerializer(serializers.ModelSerializer):
                   'created_at', 'updated_at')
         read_only_fields = ('id', 'competition', 'participants',
                             'created_at', 'updated_at')
+
+
+class PaticipantInfoSimpleSerializer(serializers.ModelSerializer):
+    participants = ParticipantSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ParticipantInfo
+        fields = ('id', 'participants')
+
+
+class MatchSerializer(serializers.ModelSerializer):
+    a_team = PaticipantInfoSimpleSerializer()
+    b_team = PaticipantInfoSimpleSerializer()
+    winner_id = PaticipantInfoSimpleSerializer()
+
+    class Meta:
+        model = Match
+        fields = ('id', 'matchround', 'matchnumber', 'courtnumber', 'description',
+                  'winner_id', 'competition', 'a_team', 'b_team', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')
