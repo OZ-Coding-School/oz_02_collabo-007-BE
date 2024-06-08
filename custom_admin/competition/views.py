@@ -6,8 +6,11 @@ from applicant_info.models import ApplicantInfo
 from competition.models import Competition
 from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer
 from custom_admin.pagination import StandardResultsSetPagination
+from custom_admin.service.competition_service import CompetitionService
 from custom_admin.service.image_service import ImageService
 from drf_yasg.utils import swagger_auto_schema
+from django.db.models import Prefetch, Exists, OuterRef
+from payments.models import Payment
 
 
 class CompetitionViewSet(viewsets.ModelViewSet):
@@ -15,6 +18,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         'image_url', 'tier', 'match_type').order_by('-created_at')
     pagination_class = StandardResultsSetPagination
     image_service = ImageService()
+    competition_service = CompetitionService()
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -126,7 +130,94 @@ class CompetitionViewSet(viewsets.ModelViewSet):
     )
     def applicants(self, request, pk=None):
         competition = self.get_object()
+        payments = Payment.objects.filter(applicant_info=OuterRef('pk'))
+        refunds = Payment.objects.filter(
+            applicant_info=OuterRef('pk'), refund__isnull=False)
+
         applicant_infos = ApplicantInfo.objects.filter(
-            competition=competition).prefetch_related('applicants__user', 'payment__refund')
+            competition=competition
+        ).prefetch_related(
+            Prefetch('applicants__user'),
+            Prefetch('payment__refund')
+        ).annotate(
+            has_payment=Exists(payments),
+            has_refund=Exists(refunds)
+        )
+
         serializer = ApplicantInfoSerializer(applicant_infos, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='applicants/(?P<applicant_id>\d+)/payment', url_name='process-payment')
+    @swagger_auto_schema(
+        operation_summary='입금 처리',
+        operation_description='사용자의 입금을 처리합니다.',
+        responses={
+            200: 'Payment processed successfully',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    def process_user_payment(self, request, * args, **kwargs):
+        try:
+            applicant_id = kwargs.get('applicant_id')
+            applicant_info = ApplicantInfo.objects.get(pk=applicant_id)
+            self.competition_service.process_payment(applicant_info)
+        except ApplicantInfo.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        return Response('입금 확인이 완료되었습니다.', status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='applicants/(?P<applicant_id>\d+)/cancel', url_name='cancel-application')
+    @swagger_auto_schema(
+        operation_summary='신청 취소',
+        operation_description='사용자의 대회 신청을 취소합니다.',
+        responses={
+            200: 'Application canceled successfully',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    def cancel_user_application(self, request, *args, **kwargs):
+        try:
+            applicant_id = kwargs.get('applicant_id')
+            applicant_info = ApplicantInfo.objects.get(pk=applicant_id)
+            if applicant_info.is_canceled():
+                return Response('이미 취소된 신청입니다.', status=status.HTTP_400_BAD_REQUEST)
+
+            self.competition_service.cancel_application(applicant_info)
+        except ApplicantInfo.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        return Response('신청이 취소되었습니다.', status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='applicants/(?P<applicant_id>\d+)/refund', url_name='process-refund')
+    @swagger_auto_schema(
+        operation_summary='환불 처리',
+        operation_description='사용자의 환불을 처리합니다.',
+        responses={
+            200: 'Refund processed successfully',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    def process_user_refund(self, request, *args, **kwargs):
+        try:
+            applicant_id = kwargs.get('applicant_id')
+            applicant_info = ApplicantInfo.objects.get(pk=applicant_id)
+            self.competition_service.process_refund(applicant_info)
+        except ApplicantInfo.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        return Response('환불이 완료되었습니다.', status=status.HTTP_200_OK)

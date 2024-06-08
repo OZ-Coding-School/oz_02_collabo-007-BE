@@ -29,7 +29,7 @@ class ClubListView(APIView):
     def get(self, request):
         try:
             # is_deleted=False를 사용하여 삭제되지 않은 클럽만 조회
-            clubs = Club.objects.filter(is_deleted=False)
+            clubs = Club.objects
             serializer = ClubListSerializer(clubs, many=True)
             # 성공 시 성공 메세지와 함께 데이터 반환
             return Response({

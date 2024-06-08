@@ -3,7 +3,6 @@ from applicant.models import Applicant
 from applicant_info.models import ApplicantInfo
 from competition.models import Competition
 from matchtype.models import MatchType
-from payments.models import Payment
 from tier.models import Tier
 from users.models import CustomUser
 
@@ -79,14 +78,14 @@ class CompetitionSerializer(serializers.ModelSerializer):
         }
 
 
-class UserSerializer(serializers.ModelSerializer):
+class ApplicantUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ('id', 'username')
 
 
 class ApplicantSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
+    user = ApplicantUserSerializer(read_only=True)
 
     class Meta:
         model = Applicant
@@ -95,8 +94,8 @@ class ApplicantSerializer(serializers.ModelSerializer):
 
 class ApplicantInfoSerializer(serializers.ModelSerializer):
     applicants = ApplicantSerializer(many=True, read_only=True)
-    has_payment = serializers.SerializerMethodField()
-    has_refund = serializers.SerializerMethodField()
+    has_payment = serializers.BooleanField()
+    has_refund = serializers.BooleanField()
 
     class Meta:
         model = ApplicantInfo
@@ -108,12 +107,3 @@ class ApplicantInfoSerializer(serializers.ModelSerializer):
             'expired_date': {'required': False},
             'waiting_number': {'required': False},
         }
-
-    def get_has_payment(self, obj):
-        return Payment.objects.filter(applicant_info=obj).exists()
-
-    def get_has_refund(self, obj):
-        payment = Payment.objects.filter(applicant_info=obj).first()
-        if payment:
-            return payment.refund is not None
-        return False
