@@ -1,8 +1,10 @@
 from applicant_info.models import ApplicantInfo
 from django.db import transaction
+from competition.models import Competition
 from participant.models import Participant
 from participant_info.models import ParticipantInfo
 from payments.models import Payment, Refund
+from match.models import Match
 
 
 class CompetitionService:
@@ -34,6 +36,16 @@ class CompetitionService:
                 return None
             Refund.objects.create(payment=payment)
         return None
+
+    def create_match(self, match_data):
+        """
+        대회의 경기를 생성하는 메서드.
+        """
+        with transaction.atomic():
+            # TODO: 토너먼트일 경우, 라운드와 경기 번호가 중복되지 않도록 처리
+            match = Match.objects.create(**match_data)
+
+        return match
 
     def _confirm_payment(self, applicant_info: ApplicantInfo):
         """

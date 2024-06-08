@@ -247,6 +247,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
+        method='get',
         operation_summary='대회 경기 목록 조회',
         operation_description='대회 경기 목록을 조회합니다.',
         responses={
@@ -256,14 +257,42 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             404: 'Not Found'
         }
     )
-    @action(detail=True, methods=['get'], url_path='matches', url_name='competition-matches')
+    @swagger_auto_schema(
+        method='post',
+        operation_summary='대회 경기 생성',
+        operation_description='대회 경기를 생성합니다.',
+        responses={
+            201: MatchSerializer,
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['get', 'post'], url_path='matches', url_name='competition-matches')
     def matches(self, request, pk=None):
-        competition = self.get_object()
-        matches = Match.objects.filter(competition=competition).select_related(
-            'a_team', 'b_team', 'winner_id'
-        ).prefetch_related(
-            'a_team__participants', 'b_team__participants', 'winner_id__participants', 'a_team__participants__user', 'b_team__participants__user', 'winner_id__participants__user'
-        )
+        if request.method == 'POST':
+            try:
+                competition = self.get_object()
+                request.data['competition'] = competition.id
+                serializer = MatchSerializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                if serializer.validated_data['a_team'] == serializer.validated_data['b_team']:
+                    return Response('동일한 팀은 경기를 할 수 없습니다.', status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = MatchSerializer(matches, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+                result = self.competition_service.create_match(
+                    serializer.validated_data)
+                return Response(MatchSerializer(result).data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        if request.method == 'GET':
+            competition = self.get_object()
+            matches = Match.objects.filter(competition=competition).select_related(
+                'a_team', 'b_team', 'winner_id'
+            ).prefetch_related(
+                'a_team__participants', 'b_team__participants', 'winner_id__participants', 'a_team__participants__user', 'b_team__participants__user', 'winner_id__participants__user'
+            )
+
+            serializer = MatchSerializer(matches, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)

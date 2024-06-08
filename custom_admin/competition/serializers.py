@@ -148,12 +148,29 @@ class PaticipantInfoSimpleSerializer(serializers.ModelSerializer):
 
 
 class MatchSerializer(serializers.ModelSerializer):
-    a_team = PaticipantInfoSimpleSerializer()
-    b_team = PaticipantInfoSimpleSerializer()
-    winner_id = PaticipantInfoSimpleSerializer()
+    a_team = PaticipantInfoSimpleSerializer(read_only=True)
+    b_team = PaticipantInfoSimpleSerializer(read_only=True)
+    winner_id = PaticipantInfoSimpleSerializer(read_only=True)
+
+    a_team_id = serializers.PrimaryKeyRelatedField(
+        queryset=ParticipantInfo.objects.all(), write_only=True, source='a_team', required=False)
+    b_team_id = serializers.PrimaryKeyRelatedField(
+        queryset=ParticipantInfo.objects.all(), write_only=True, source='b_team', required=False)
+    winner = serializers.PrimaryKeyRelatedField(
+        queryset=ParticipantInfo.objects.all(), write_only=True, source='winner_id', required=False)
 
     class Meta:
         model = Match
         fields = ('id', 'match_round', 'match_number', 'court_number', 'description',
-                  'winner_id', 'competition', 'a_team', 'b_team', 'created_at', 'updated_at')
+                  'winner_id', 'competition', 'a_team', 'b_team', 'created_at', 'updated_at',
+                  'a_team_id', 'b_team_id', 'winner')
         read_only_fields = ('id', 'created_at', 'updated_at')
+        extra_kwargs = {
+            'description': {'required': False, 'allow_blank': True},
+            'winner_id': {'required': False},
+            'a_team': {'required': False},
+            'b_team': {'required': False},
+            'match_round': {'required': False},
+            'match_number': {'required': False},
+            'court_number': {'required': False},
+        }

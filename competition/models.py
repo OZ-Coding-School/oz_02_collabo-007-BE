@@ -51,6 +51,12 @@ class Competition(TimeStampedModel, SoftDeleteModel):
 
     class Meta:
         db_table = 'competition'
+        
+    def is_league(self):
+        return self.competition_type == 'league'
+    
+    def is_tournament(self):
+        return self.competition_type == 'tournament'
 
 
 
