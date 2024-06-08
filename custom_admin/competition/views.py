@@ -4,12 +4,13 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from applicant_info.models import ApplicantInfo
 from competition.models import Competition
-from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer
+from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, ParticipantInfoSerializer
 from custom_admin.pagination import StandardResultsSetPagination
 from custom_admin.service.competition_service import CompetitionService
 from custom_admin.service.image_service import ImageService
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Prefetch, Exists, OuterRef
+from participant_info.models import ParticipantInfo
 from payments.models import Payment
 
 
@@ -117,7 +118,6 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             return pow(2, total_rounds)
         return max_participants if max_participants > 0 else None
 
-    @action(detail=True, methods=['get'], url_path='applicants', url_name='competition-applicants')
     @swagger_auto_schema(
         operation_summary='대회 참가자 목록 조회',
         operation_description='대회 참가자 목록을 조회합니다.',
@@ -128,6 +128,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             404: 'Not Found'
         }
     )
+    @action(detail=True, methods=['get'], url_path='applicants', url_name='competition-applicants')
     def applicants(self, request, pk=None):
         competition = self.get_object()
         payments = Payment.objects.filter(applicant_info=OuterRef('pk'))
@@ -147,7 +148,6 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         serializer = ApplicantInfoSerializer(applicant_infos, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['post'], url_path='applicants/(?P<applicant_id>\d+)/payment', url_name='process-payment')
     @swagger_auto_schema(
         operation_summary='입금 처리',
         operation_description='사용자의 입금을 처리합니다.',
@@ -159,6 +159,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             404: 'Not Found'
         }
     )
+    @action(detail=True, methods=['post'], url_path=r'applicants/(?P<applicant_id>\d+)/payment', url_name='process-payment')
     def process_user_payment(self, request, * args, **kwargs):
         try:
             applicant_id = kwargs.get('applicant_id')
@@ -171,7 +172,6 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
         return Response('입금 확인이 완료되었습니다.', status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['post'], url_path='applicants/(?P<applicant_id>\d+)/cancel', url_name='cancel-application')
     @swagger_auto_schema(
         operation_summary='신청 취소',
         operation_description='사용자의 대회 신청을 취소합니다.',
@@ -183,6 +183,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             404: 'Not Found'
         }
     )
+    @action(detail=True, methods=['post'], url_path=r'applicants/(?P<applicant_id>\d+)/cancel', url_name='cancel-application')
     def cancel_user_application(self, request, *args, **kwargs):
         try:
             applicant_id = kwargs.get('applicant_id')
@@ -198,7 +199,6 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
         return Response('신청이 취소되었습니다.', status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['post'], url_path='applicants/(?P<applicant_id>\d+)/refund', url_name='process-refund')
     @swagger_auto_schema(
         operation_summary='환불 처리',
         operation_description='사용자의 환불을 처리합니다.',
@@ -210,6 +210,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             404: 'Not Found'
         }
     )
+    @action(detail=True, methods=['post'], url_path=r'applicants/(?P<applicant_id>\d+)/refund', url_name='process-refund')
     def process_user_refund(self, request, *args, **kwargs):
         try:
             applicant_id = kwargs.get('applicant_id')
@@ -221,3 +222,25 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
         return Response('환불이 완료되었습니다.', status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='대회 참가자 목록 조회',
+        operation_description='대회 참가자 목록을 조회합니다.',
+        responses={
+            200: ApplicantInfoSerializer,
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['get'], url_path='participants', url_name='competition-participants')
+    def participants(self, request, pk=None):
+        competition = self.get_object()
+        participant_infos = ParticipantInfo.objects.filter(
+            competition=competition
+        ).prefetch_related(
+            Prefetch('participants__user')
+        )
+
+        serializer = ParticipantInfoSerializer(participant_infos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -6,7 +6,8 @@ from competition.models import Competition
 
 class ParticipantInfo(TimeStampedModel, SoftDeleteModel):
     id = models.AutoField(primary_key=True)
-    competition = models.ForeignKey(Competition, on_delete=models.CASCADE)
+    competition = models.ForeignKey(
+        Competition, on_delete=models.CASCADE, related_name='participants')
     applicant_info = models.OneToOneField(
         ApplicantInfo, related_name='participant_info', on_delete=models.DO_NOTHING, null=True, blank=True)
 

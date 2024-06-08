@@ -3,6 +3,8 @@ from applicant.models import Applicant
 from applicant_info.models import ApplicantInfo
 from competition.models import Competition
 from matchtype.models import MatchType
+from participant.models import Participant
+from participant_info.models import ParticipantInfo
 from tier.models import Tier
 from users.models import CustomUser
 
@@ -78,18 +80,22 @@ class CompetitionSerializer(serializers.ModelSerializer):
         }
 
 
-class ApplicantUserSerializer(serializers.ModelSerializer):
+class CompetitionUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ('id', 'username')
 
 
 class ApplicantSerializer(serializers.ModelSerializer):
-    user = ApplicantUserSerializer(read_only=True)
+    user = CompetitionUserSerializer(read_only=True)
 
     class Meta:
         model = Applicant
-        fields = ('id', 'user')
+        fields = ['user']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        return representation['user']
 
 
 class ApplicantInfoSerializer(serializers.ModelSerializer):
@@ -107,3 +113,26 @@ class ApplicantInfoSerializer(serializers.ModelSerializer):
             'expired_date': {'required': False},
             'waiting_number': {'required': False},
         }
+
+
+class ParticipantSerializer(serializers.ModelSerializer):
+    user = CompetitionUserSerializer()
+
+    class Meta:
+        model = Participant
+        fields = ['user']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        return representation['user']
+
+
+class ParticipantInfoSerializer(serializers.ModelSerializer):
+    participants = ParticipantSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ParticipantInfo
+        fields = ('id', 'participants', 'competition',
+                  'created_at', 'updated_at')
+        read_only_fields = ('id', 'competition', 'participants',
+                            'created_at', 'updated_at')
