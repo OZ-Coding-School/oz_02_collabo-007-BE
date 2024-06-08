@@ -1,8 +1,10 @@
 import random
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from rest_framework.decorators import action
+from applicant_info.models import ApplicantInfo
 from competition.models import Competition
-from custom_admin.competition.serializers import CompetitionListSerializer, CompetitionSerializer
+from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer
 from custom_admin.pagination import StandardResultsSetPagination
 from custom_admin.service.image_service import ImageService
 from drf_yasg.utils import swagger_auto_schema
@@ -110,3 +112,21 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         if competition_type == 'tournament':
             return pow(2, total_rounds)
         return max_participants if max_participants > 0 else None
+
+    @action(detail=True, methods=['get'], url_path='applicants', url_name='competition-applicants')
+    @swagger_auto_schema(
+        operation_summary='대회 참가자 목록 조회',
+        operation_description='대회 참가자 목록을 조회합니다.',
+        responses={
+            200: ApplicantInfoSerializer,
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    def applicants(self, request, pk=None):
+        competition = self.get_object()
+        applicant_infos = ApplicantInfo.objects.filter(
+            competition=competition).prefetch_related('applicants__user', 'payment__refund')
+        serializer = ApplicantInfoSerializer(applicant_infos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

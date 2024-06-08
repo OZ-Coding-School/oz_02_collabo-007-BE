@@ -52,6 +52,7 @@ CUSTOM_APPS = [
     'participant_info.apps.ParticipantInfoConfig',
     'set.apps.SetConfig',
     'custom_admin.apps.CustomAdminConfig',
+    'payments',
 ]
 
 
@@ -252,10 +253,10 @@ LOGGING = {
             'class': 'logging.StreamHandler',
         },
     },
-    # 'loggers': {
-    #     'django.db.backends': {
-    #         'handlers': ['console'],
-    #         'level': 'DEBUG',
-    #     },
-    # },
+    'loggers': {
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
 }
