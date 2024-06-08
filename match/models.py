@@ -5,9 +5,9 @@ from participant_info.models import ParticipantInfo
 
 class Match(TimeStampedModel):
     id = models.AutoField(primary_key=True)
-    matchround = models.IntegerField(db_column='matchRound', blank=True, null=True)  # Field name made lowercase.
-    matchnumber = models.IntegerField(db_column='matchNumber', blank=True, null=True)  # Field name made lowercase.
-    courtnumber = models.IntegerField(db_column='courtNumber', blank=True, null=True)  # Field name made lowercase.
+    match_round = models.IntegerField(db_column='matchRound', blank=True, null=True)  # Field name made lowercase.
+    match_number = models.IntegerField(db_column='matchNumber', blank=True, null=True)  # Field name made lowercase.
+    court_number = models.IntegerField(db_column='courtNumber', blank=True, null=True)  # Field name made lowercase.
     description = models.TextField(blank=True, null=True)  
     winner_id = models.ForeignKey(ParticipantInfo, models.DO_NOTHING, related_name='winner_user', blank=True, null=True)
     competition = models.ForeignKey(Competition, models.DO_NOTHING, related_name='matches')
