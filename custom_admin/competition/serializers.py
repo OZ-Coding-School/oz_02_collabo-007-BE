@@ -154,6 +154,6 @@ class MatchSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Match
-        fields = ('id', 'matchround', 'matchnumber', 'courtnumber', 'description',
+        fields = ('id', 'match_round', 'match_number', 'court_number', 'description',
                   'winner_id', 'competition', 'a_team', 'b_team', 'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at')
