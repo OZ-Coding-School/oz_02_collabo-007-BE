@@ -89,7 +89,7 @@ class PartnerSearchView(APIView):
             404: 'Not Found'
         }
     )
-
+    # 검색했을때 그 해당 파트너가 해당 대회 신청 가능한지 여부 판단
     def get(self, request, pk):
         search_query = request.query_params.get('query', '')
         
@@ -101,6 +101,7 @@ class PartnerSearchView(APIView):
         serializer = UserWithClubInfoSerializer(partners, many=True)
         
         return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 ## 대회신청
