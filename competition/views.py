@@ -128,8 +128,15 @@ class CompetitionApplyView(APIView):
         applicant = request.user 
         
         # 신청자 중복 신청 확인
-        if Applicant.objects.filter(applicant_info__competition=competition, user=applicant).exists():
-            return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
+        duplicates = Applicant.objects.filter(applicant_info__competition=competition, user=applicant).order_by('-created_at').first() # 기존 참가자 정보 유무 확인
+        if duplicates is not None:
+            duplicates_status = duplicates.applicant_info.status
+        
+            if duplicates_status:
+                if 'user_canceled' not in duplicates_status : # 사용자취소 이외의 상태인 참가신청정보가 있을 때
+                    if 'admin_canceled' in duplicates_status : # 관리자 취소처리된 참가신청정보가 있을 때
+                        return Response({'error': '관리자 권한으로 참가신청이 취소되었습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'error': '이미 신청된 대회입니다.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 진행 중인 대회 신청시 에러메세지
         if competition.status == 'during':
@@ -187,8 +194,17 @@ class CompetitionApplyView(APIView):
             
             
             # 파트너 중복 신청 확인
-            elif partner_id and Applicant.objects.filter(applicant_info__competition=competition, user_id=partner_id).exists():
-                return Response({'error': '선택하신 파트너는 이미 해당 대회를 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+            elif partner_id:
+                duplicates = Applicant.objects.filter(applicant_info__competition=competition, user_id=partner_id).order_by('-created_at').first() # 기존 참가자 정보 유무 확인
+
+                if duplicates is not None:
+                    duplicates_status = duplicates.applicant_info.status
+        
+                    if duplicates_status:
+                        if 'user_canceled' not in duplicates_status :
+                            if 'admin_canceled' in duplicates_status : 
+                                return Response({'error': '관리자 권한으로 참가신청이 취소되었습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+                            return Response({'error': '선택하신 파트너는 이미 해당 대회를 신청하셨습니다.'}, status=status.HTTP_400_BAD_REQUEST)
             
             return self.handle_doubles(request, competition, applicant, partner)
         
