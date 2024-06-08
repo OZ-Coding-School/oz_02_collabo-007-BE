@@ -46,7 +46,7 @@ class CompetitionListSerializer(serializers.ModelSerializer):
         # 로그인 확인
         if obj.status == 'before':
             # 신청 여부 확인
-            if Applicant.objects.filter(user=user, applicant_info__competition=obj).exists():
+            if Applicant.objects.filter(user=user, applicant_info__competition=obj, applicant_info__status__in=['unpaid', 'pending_participation', 'confirmed_participation']).exists():
                 return '신청 완료'
             # 유저 성별 / 실력 확인
             if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or obj.tier not in user.tiers.all():
@@ -109,7 +109,7 @@ class CompetitionDetailInfoSerializer(serializers.ModelSerializer):
         # 로그인 확인
         if obj.status == 'before':
             # 신청 여부 확인
-            if Applicant.objects.filter(user=user, applicant_info__competition=obj).exists():
+            if Applicant.objects.filter(user=user, applicant_info__competition=obj, applicant_info__status__in=['unpaid', 'pending_participation', 'confirmed_participation']).exists():
                 return '신청 완료'
             # 유저 성별 / 실력 확인
             if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or obj.tier not in user.tiers.all():
