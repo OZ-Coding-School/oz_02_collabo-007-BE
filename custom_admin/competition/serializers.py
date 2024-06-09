@@ -174,3 +174,19 @@ class MatchSerializer(serializers.ModelSerializer):
             'match_number': {'required': False},
             'court_number': {'required': False},
         }
+
+
+class MatchResultSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Match
+        fields = ('id', 'a_score', 'b_score', 'description', 'winner_id', 'competition',
+                  'a_team', 'b_team', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')
+        extra_kwargs = {
+            'description': {'required': False, 'allow_blank': True},
+            'winner_id': {'required': False},
+            'a_team': {'required': False},
+            'b_team': {'required': False},
+            'a_score': {'required': False},
+            'b_score': {'required': False},
+        }

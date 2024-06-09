@@ -275,6 +275,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             try:
                 competition = self.get_object()
                 request.data['competition'] = competition.id
+                request.data['total_sets'] = competition.total_sets
                 serializer = MatchSerializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 if serializer.validated_data['a_team'] == serializer.validated_data['b_team']:
@@ -296,3 +297,20 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
             serializer = MatchSerializer(matches, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='대회 경기 상세 조회',
+        operation_description='대회 경기 상세 정보를 조회합니다.',
+        responses={
+            200: MatchSerializer,
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['get'], url_path=r'matches/(?P<match_id>\d+)', url_name='competition-match')
+    def match(self, request, *args, **kwargs):
+        match_id = kwargs.get('match_id')
+        match = Match.objects.get(pk=match_id)
+        serializer = MatchSerializer(match)
+        return Response(serializer.data, status=status.HTTP_200_OK)

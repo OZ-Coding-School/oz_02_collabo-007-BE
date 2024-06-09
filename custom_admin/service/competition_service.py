@@ -43,6 +43,7 @@ class CompetitionService:
         """
         with transaction.atomic():
             # TODO: 토너먼트일 경우, 라운드와 경기 번호가 중복되지 않도록 처리
+            # TODO: 토너먼트일 경우, 라운드 수가 총 라운드 수를 넘지 않도록 처리
             match = Match.objects.create(**match_data)
 
         return match

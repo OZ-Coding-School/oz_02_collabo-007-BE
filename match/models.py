@@ -13,6 +13,8 @@ class Match(TimeStampedModel):
     competition = models.ForeignKey(Competition, models.DO_NOTHING, related_name='matches')
     a_team = models.ForeignKey(ParticipantInfo, models.DO_NOTHING, related_name='match_a_team_set', blank=True, null=True)
     b_team = models.ForeignKey(ParticipantInfo, models.DO_NOTHING, related_name='match_b_team_set', blank=True, null=True)
+    total_sets = models.IntegerField(blank=True, null=True)
+    
 
     class Meta: 
         db_table = 'match'
