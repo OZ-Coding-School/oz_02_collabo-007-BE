@@ -8,6 +8,7 @@ from participant_info.models import ParticipantInfo
 from tier.models import Tier
 from users.models import CustomUser
 from match.models import Match
+from set.models import Set
 
 
 class CompetitionListSerializer(serializers.ModelSerializer):
@@ -139,7 +140,7 @@ class ParticipantInfoSerializer(serializers.ModelSerializer):
                             'created_at', 'updated_at')
 
 
-class PaticipantInfoSimpleSerializer(serializers.ModelSerializer):
+class ParticipantInfoSimpleSerializer(serializers.ModelSerializer):
     participants = ParticipantSerializer(many=True, read_only=True)
 
     class Meta:
@@ -148,9 +149,9 @@ class PaticipantInfoSimpleSerializer(serializers.ModelSerializer):
 
 
 class MatchSerializer(serializers.ModelSerializer):
-    a_team = PaticipantInfoSimpleSerializer(read_only=True)
-    b_team = PaticipantInfoSimpleSerializer(read_only=True)
-    winner_id = PaticipantInfoSimpleSerializer(read_only=True)
+    a_team = ParticipantInfoSimpleSerializer(read_only=True)
+    b_team = ParticipantInfoSimpleSerializer(read_only=True)
+    winner_id = ParticipantInfoSimpleSerializer(read_only=True)
 
     a_team_id = serializers.PrimaryKeyRelatedField(
         queryset=ParticipantInfo.objects.all(), write_only=True, source='a_team', required=False)
@@ -176,17 +177,29 @@ class MatchSerializer(serializers.ModelSerializer):
         }
 
 
+class SetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Set
+        fields = ['id', 'set_number', 'a_score', 'b_score']
+        read_only_fields = ('id',)
+
+
 class MatchResultSerializer(serializers.ModelSerializer):
+    a_team = ParticipantInfoSimpleSerializer(read_only=True)
+    b_team = ParticipantInfoSimpleSerializer(read_only=True)
+    sets = SetSerializer(many=True, read_only=True, source='set_list')
+
     class Meta:
         model = Match
-        fields = ('id', 'a_score', 'b_score', 'description', 'winner_id', 'competition',
-                  'a_team', 'b_team', 'created_at', 'updated_at')
-        read_only_fields = ('id', 'created_at', 'updated_at')
+        fields = ('id', 'match_round', 'match_number', 'court_number', 'description',
+                  'winner_id', 'a_team', 'b_team', 'sets', 'total_sets')
+        read_only_fields = ['id']
         extra_kwargs = {
             'description': {'required': False, 'allow_blank': True},
             'winner_id': {'required': False},
             'a_team': {'required': False},
             'b_team': {'required': False},
-            'a_score': {'required': False},
-            'b_score': {'required': False},
+            'match_round': {'required': False},
+            'match_number': {'required': False},
+            'court_number': {'required': False},
         }

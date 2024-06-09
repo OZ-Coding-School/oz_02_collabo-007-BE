@@ -4,13 +4,14 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from applicant_info.models import ApplicantInfo
 from competition.models import Competition
-from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchSerializer, ParticipantInfoSerializer
+from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchResultSerializer, MatchSerializer, ParticipantInfoSerializer
 from custom_admin.pagination import StandardResultsSetPagination
 from custom_admin.service.competition_service import CompetitionService
 from custom_admin.service.image_service import ImageService
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Prefetch, Exists, OuterRef
 from match.models import Match
+from participant.models import Participant
 from participant_info.models import ParticipantInfo
 from payments.models import Payment
 
@@ -302,7 +303,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         operation_summary='대회 경기 상세 조회',
         operation_description='대회 경기 상세 정보를 조회합니다.',
         responses={
-            200: MatchSerializer,
+            200: MatchResultSerializer,
             401: 'Authentication Error',
             403: 'Permission Denied',
             404: 'Not Found'
@@ -311,6 +312,15 @@ class CompetitionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], url_path=r'matches/(?P<match_id>\d+)', url_name='competition-match')
     def match(self, request, *args, **kwargs):
         match_id = kwargs.get('match_id')
-        match = Match.objects.get(pk=match_id)
-        serializer = MatchSerializer(match)
+        match = Match.objects.select_related(
+            'a_team', 'b_team'
+        ).prefetch_related(
+            Prefetch('a_team__participants',
+                     queryset=Participant.objects.select_related('user')),
+            Prefetch('b_team__participants',
+                     queryset=Participant.objects.select_related('user')),
+            'set_list'
+        ).get(pk=match_id)
+
+        serializer = MatchResultSerializer(match)
         return Response(serializer.data, status=status.HTTP_200_OK)

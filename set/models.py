@@ -7,7 +7,7 @@ class Set(TimeStampedModel):
     set_number = models.IntegerField(db_column='setNumber', blank=True, null=True)  # Field name made lowercase.
     a_score = models.IntegerField(db_column='Ascore', blank=True, null=True)  # Field name made lowercase.
     b_score = models.IntegerField(db_column='Bscore', blank=True, null=True)  # Field name made lowercase.
-    match_list = models.ForeignKey(Match, models.DO_NOTHING, default=1)
+    match_list = models.ForeignKey(Match, models.DO_NOTHING, default=1, related_name='set_list')
 
     class Meta:
         db_table = 'set'
