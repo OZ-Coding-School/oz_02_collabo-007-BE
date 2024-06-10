@@ -375,7 +375,7 @@ class CompetitionApplyResultView(APIView):
         if competition.match_type.type == 'single':
         
             try :
-                applicant_1 = Applicant.objects.get(applicant_info__competition=competition,user=user)
+                applicant_1 = Applicant.objects.filter(applicant_info__competition=competition,user=user).first()
             except Applicant.DoesNotExist :
                 return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -389,7 +389,7 @@ class CompetitionApplyResultView(APIView):
         # applicant_info fk가 똑같은 유저
         else : 
             try :
-                applicant_1 = Applicant.objects.get(applicant_info__competition=competition,user=user)
+                applicant_1 = Applicant.objects.filter(applicant_info__competition=competition,user=user).first()
         
             except Applicant.DoesNotExist :
                 return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
@@ -495,9 +495,7 @@ class MyCompetitionListView(APIView):
         participant_competitions = Participant.objects.filter(user=user).values_list('participant_info__competition', flat=True)
         applicant_competitions = Applicant.objects.filter(user=user).values_list('applicant_info__competition', flat=True)
 
-
-        # 쿼리 파라미터로 count 받기
-        # 쿼리 파라미터로 status 받기 
+        # 쿼리 파라미터로 count, status 받기
         competition_count = request.query_params.get('count', None)
         comeptition_status = request.query_params.get('status', None)
 

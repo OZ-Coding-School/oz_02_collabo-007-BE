@@ -177,17 +177,17 @@ class CompetitionStatusSerializer(serializers.ModelSerializer):
 
 ## 참가 신청한 대회 정보 
 class MyCompetitionSerializer(serializers.ModelSerializer):
-
     matches = serializers.SerializerMethodField()
     apply_status = serializers.SerializerMethodField()
     tier = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
+    match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
+
     
     class Meta:
         model = Competition
-        fields = ['id', 'name', 'start_date', 'tier', 'total_rounds', 'total_sets', 'location', 'address', 
+        fields = ['id', 'name', 'start_date', 'tier', 'match_type_details', 'total_rounds', 'total_sets', 'location', 'address', 
                 'description', 'rule', 'phone', 'site_link', 'image_url', 'status', 'apply_status','matches' ]
-        # fields = ['name', 'status', 'start_date', 'tier', 'location', 'image_url', 'apply_status','matches']
     
     # matches 필드 추가
     def get_matches(self, obj):
@@ -196,7 +196,7 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
 
         # 사용자가 속한 대회에 해당하는 매치 정보 가져오기
         matches = Match.objects.filter(
-            Q(a_team__participant__user=user) | Q(b_team__participant__user=user),
+            Q(a_team__participants__user=user) | Q(b_team__participants__user=user),
             competition=obj
         ).order_by('-created_at')
 
