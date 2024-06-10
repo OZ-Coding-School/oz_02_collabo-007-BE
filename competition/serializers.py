@@ -177,11 +177,12 @@ class CompetitionStatusSerializer(serializers.ModelSerializer):
 
 ## 참가 신청한 대회 정보 
 class MyCompetitionSerializer(serializers.ModelSerializer):
-    match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
     matches = serializers.SerializerMethodField()
     apply_status = serializers.SerializerMethodField()
     tier = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
+    match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
+
     
     class Meta:
         model = Competition
