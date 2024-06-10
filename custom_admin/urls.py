@@ -6,4 +6,5 @@ urlpatterns = [
     path('admin/', include('custom_admin.club.urls')),
     path('admin/', include('custom_admin.team.urls')),
     path('admin/', include('custom_admin.competition.urls')),
+    path('admin/', include('custom_admin.match.urls')),
 ]

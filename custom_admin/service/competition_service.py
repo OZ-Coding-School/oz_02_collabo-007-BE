@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from applicant_info.models import ApplicantInfo
 from django.db import transaction
 from competition.models import Competition
@@ -45,6 +46,39 @@ class CompetitionService:
             # TODO: 토너먼트일 경우, 라운드와 경기 번호가 중복되지 않도록 처리
             # TODO: 토너먼트일 경우, 라운드 수가 총 라운드 수를 넘지 않도록 처리
             match = Match.objects.create(**match_data)
+
+        return match
+
+    def edit_match(self, match: Match, match_data):
+        """
+        대회의 경기를 수정하는 메서드.
+        """
+        with transaction.atomic():
+            for attr, value in match_data.items():
+                setattr(match, attr, value)
+            match.save()
+
+        return match
+
+    def update_or_create_match_result(self, match_id, match_data):
+        """
+        경기 결과를 입력하거나 수정하는 메서드.
+        """
+        with transaction.atomic():
+            match = get_object_or_404(Match, id=match_id)
+
+            for set_data in match_data['sets']:
+                self._create_or_update_set(match, set_data)
+
+            winner = match_data.get('winner')
+            if winner == 'a':
+                match.winner_id = match.a_team
+            if winner == 'b':
+                match.winner_id = match.b_team
+            if winner is None or winner == '':
+                match.winner_id = None
+
+            match.save()
 
         return match
 
@@ -138,3 +172,36 @@ class CompetitionService:
             self._create_participant(waiting_participant)
 
         return None
+
+    def _create_or_update_set(self, match, set_data):
+        """
+        경기 결과를 입력하거나 수정하는 메서드.
+
+        이 메서드는 다음 작업을 수행합니다:
+        1. 기존 세트 정보가 없고 점수가 없는 경우, 아무 작업도 수행하지 않습니다.
+        2. 기존 세트 정보가 없고 점수가 있는 경우, 세트 정보를 생성합니다.
+        3. 생성되거나 기존 세트 정보에 점수를 입력하거나 수정합니다.
+
+        Args:
+            match: Match 객체
+            set_data: Set 객체 정보
+
+        Returns:
+            set: Set 객체
+        """
+        set_number = set_data.get('set_number')
+        a_score = set_data.get('a_score')
+        b_score = set_data.get('b_score')
+
+        result_set = match.set_list.filter(set_number=set_number).first()
+        if result_set is None and a_score is None and b_score is None:
+            return None
+
+        if result_set is None:
+            result_set = match.set_list.create(set_number=set_number)
+
+        result_set.a_score = a_score
+        result_set.b_score = b_score
+        result_set.save()
+
+        return result_set
