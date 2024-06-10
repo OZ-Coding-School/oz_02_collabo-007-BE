@@ -495,8 +495,7 @@ class MyCompetitionListView(APIView):
         participant_competitions = Participant.objects.filter(user=user).values_list('participant_info__competition', flat=True)
         applicant_competitions = Applicant.objects.filter(user=user).values_list('applicant_info__competition', flat=True)
 
-        # 쿼리 파라미터로 count 받기
-        # 쿼리 파라미터로 status 받기 
+        # 쿼리 파라미터로 count, status 받기
         competition_count = request.query_params.get('count', None)
         comeptition_status = request.query_params.get('status', None)
 
