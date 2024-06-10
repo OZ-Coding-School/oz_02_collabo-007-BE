@@ -177,7 +177,7 @@ class CompetitionStatusSerializer(serializers.ModelSerializer):
 
 ## 참가 신청한 대회 정보 
 class MyCompetitionSerializer(serializers.ModelSerializer):
-
+    match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
     matches = serializers.SerializerMethodField()
     apply_status = serializers.SerializerMethodField()
     tier = serializers.SerializerMethodField()
@@ -185,7 +185,7 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Competition
-        fields = ['id', 'name', 'start_date', 'tier', 'total_rounds', 'total_sets', 'location', 'address', 
+        fields = ['id', 'name', 'start_date', 'tier', 'match_type_details', 'total_rounds', 'total_sets', 'location', 'address', 
                 'description', 'rule', 'phone', 'site_link', 'image_url', 'status', 'apply_status','matches' ]
     
     # matches 필드 추가

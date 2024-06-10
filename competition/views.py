@@ -402,7 +402,6 @@ class CompetitionApplyResultView(APIView):
             applicants = [applicant1_serializer.data, applicant2_serializer.data]
 
 
-
         # 대회 신청정보
         applicant_infos = applicant_1.applicant_info
 
@@ -493,15 +492,8 @@ class MyCompetitionListView(APIView):
     def get(self, request):
 
         user = request.user
-        '''
         participant_competitions = Participant.objects.filter(user=user).values_list('participant_info__competition', flat=True)
         applicant_competitions = Applicant.objects.filter(user=user).values_list('applicant_info__competition', flat=True)
-        '''
-        participant_infos = ParticipantInfo.objects.filter(participants__user=user)
-        participant_competitions = [participant_info.competition.id for participant_info in participant_infos]
-        applicant_infos = ApplicantInfo.objects.filter(applicants__user=user)
-        applicant_competitions = [applicant_info.competition.id for applicant_info in applicant_infos]
-
 
         # 쿼리 파라미터로 count 받기
         # 쿼리 파라미터로 status 받기 
