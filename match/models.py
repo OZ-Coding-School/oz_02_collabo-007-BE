@@ -18,3 +18,4 @@ class Match(TimeStampedModel):
 
     class Meta: 
         db_table = 'match'
+        ordering = ['match_number']
