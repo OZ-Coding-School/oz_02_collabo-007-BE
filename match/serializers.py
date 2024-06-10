@@ -5,16 +5,17 @@ from users.serializers import UserInfoSerializer
 from set.serializers import SetSerializer
 from set.models import Set
 
-
-
 class MatchSerializer(serializers.ModelSerializer):
     sets = serializers.SerializerMethodField()
     a_team_users = serializers.SerializerMethodField()
     b_team_users = serializers.SerializerMethodField()
     winner_user = serializers.SerializerMethodField()
+    match_round = serializers.IntegerField(allow_null=True)
+    total_sets = serializers.SerializerMethodField()
+    
     class Meta:
         model = Match
-        fields = ['id', 'match_round', 'match_number', 'court_number', 'description', 'winner_user', 'a_team_users', 'b_team_users', 'sets']
+        fields = ['id', 'match_round', 'match_number', 'court_number', 'total_sets', 'description', 'winner_user', 'a_team_users', 'b_team_users', 'sets']
 
     def get_sets(self, obj):
         sets = Set.objects.filter(match_list=obj)
@@ -32,7 +33,11 @@ class MatchSerializer(serializers.ModelSerializer):
 
     def get_b_team_users(self, obj):
         participants = Participant.objects.filter(participant_info=obj.b_team)
-        return UserInfoSerializer([participant.user for participant in participants], many=True).data  
+        users_data = UserInfoSerializer([participant.user for participant in participants], many=True).data  
+        return users_data if users_data else None
+
+    def get_total_sets(self, obj):
+        return obj.competition.total_sets
 
 
 class MyCompetitionMatchSerializer(serializers.ModelSerializer):
