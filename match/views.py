@@ -20,7 +20,7 @@ class MatchRoundAPIView(APIView):
         roundnumber = request.query_params.get('roundnumber', None)
         filters = {'competition_id': competition_id}
         if roundnumber is not None:
-            filters['matchround'] = roundnumber
+            filters['match_round'] = roundnumber
 
         matches = Match.objects.filter(**filters) if filters else Match.objects.all()
   
