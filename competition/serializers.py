@@ -187,7 +187,6 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
         model = Competition
         fields = ['id', 'name', 'start_date', 'tier', 'total_rounds', 'total_sets', 'location', 'address', 
                 'description', 'rule', 'phone', 'site_link', 'image_url', 'status', 'apply_status','matches' ]
-        # fields = ['name', 'status', 'start_date', 'tier', 'location', 'image_url', 'apply_status','matches']
     
     # matches 필드 추가
     def get_matches(self, obj):
@@ -196,7 +195,7 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
 
         # 사용자가 속한 대회에 해당하는 매치 정보 가져오기
         matches = Match.objects.filter(
-            Q(a_team__participant__user=user) | Q(b_team__participant__user=user),
+            Q(a_team__participants__user=user) | Q(b_team__participants__user=user),
             competition=obj
         ).order_by('-created_at')
 

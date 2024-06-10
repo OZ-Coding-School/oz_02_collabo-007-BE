@@ -375,7 +375,7 @@ class CompetitionApplyResultView(APIView):
         if competition.match_type.type == 'single':
         
             try :
-                applicant_1 = Applicant.objects.get(applicant_info__competition=competition,user=user)
+                applicant_1 = Applicant.objects.filter(applicant_info__competition=competition,user=user).first()
             except Applicant.DoesNotExist :
                 return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -389,7 +389,7 @@ class CompetitionApplyResultView(APIView):
         # applicant_info fk가 똑같은 유저
         else : 
             try :
-                applicant_1 = Applicant.objects.get(applicant_info__competition=competition,user=user)
+                applicant_1 = Applicant.objects.filter(applicant_info__competition=competition,user=user).first()
         
             except Applicant.DoesNotExist :
                 return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
@@ -400,6 +400,7 @@ class CompetitionApplyResultView(APIView):
             applicant2_serializer = CompetitionApplicantSerializer(applicant_2)
 
             applicants = [applicant1_serializer.data, applicant2_serializer.data]
+
 
 
         # 대회 신청정보
@@ -492,8 +493,14 @@ class MyCompetitionListView(APIView):
     def get(self, request):
 
         user = request.user
+        '''
         participant_competitions = Participant.objects.filter(user=user).values_list('participant_info__competition', flat=True)
         applicant_competitions = Applicant.objects.filter(user=user).values_list('applicant_info__competition', flat=True)
+        '''
+        participant_infos = ParticipantInfo.objects.filter(participants__user=user)
+        participant_competitions = [participant_info.competition.id for participant_info in participant_infos]
+        applicant_infos = ApplicantInfo.objects.filter(applicants__user=user)
+        applicant_competitions = [applicant_info.competition.id for applicant_info in applicant_infos]
 
 
         # 쿼리 파라미터로 count 받기
