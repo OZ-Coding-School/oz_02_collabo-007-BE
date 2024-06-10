@@ -18,7 +18,7 @@ class CompetitionListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Competition
         fields = ('id', 'name', 'tier', 'match_type', 'start_date', 'status', 'competition_type',
-                  'location', 'phone', 'created_at', 'updated_at')
+                  'total_rounds', 'location', 'phone', 'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at', 'status')
 
     def get_tier(self, obj):
