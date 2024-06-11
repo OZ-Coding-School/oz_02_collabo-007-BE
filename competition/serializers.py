@@ -45,27 +45,27 @@ class CompetitionListSerializer(serializers.ModelSerializer):
         ## 대회 전 / 유저의 조건에 따라 신청 가능여부 판별
         # 로그인 x 상태일 때
         if obj.status == 'before' and not user.is_authenticated:
-            return '신청 불가능'
+            return 'Registration Unavailable'
         # 로그인 확인
         if obj.status == 'before':
             # 신청 여부 확인
             if Applicant.objects.filter(user=user, applicant_info__competition=obj, applicant_info__status__in=['unpaid', 'pending_participation', 'confirmed_participation']).exists():
-                return '신청 완료'
+                return 'Registration Confirmed'
             # 유저 성별 / 실력 확인
             if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or obj.tier not in user.tiers.all():
-                return '신청 불가능'
+                return 'Registration Unavailable'
             # 대기 상태 여부
             elif current_applicants_count >= obj.max_participants:
-                return '대기 가능'
+                return 'Waitlist Available'
             # 모든 상황이 부합할 경우 신청 가능
             else:
-                return '신청 가능'
+                return 'Registration Available'
         # 대회 진행중    
         elif obj.status == 'during':
-            return '대회 진행중'
+            return 'during'
         # 대회 종료
         else:
-            return '대회 종료'
+            return 'ended'
         
     def get_waiting_count(self, obj):
         current_applicants_count = obj.applicants.filter(status__in=['unpaid', 'confirmed_participation', 'pending_participation']).count()
@@ -108,27 +108,27 @@ class CompetitionDetailInfoSerializer(serializers.ModelSerializer):
         ## 대회 전 / 유저의 조건에 따라 신청 가능여부 판별
         # 로그인 x 상태일 때
         if obj.status == 'before' and not user.is_authenticated:
-            return '신청 불가능'
+            return 'Registration Unavailable'
         # 로그인 확인
         if obj.status == 'before':
             # 신청 여부 확인
             if Applicant.objects.filter(user=user, applicant_info__competition=obj, applicant_info__status__in=['unpaid', 'pending_participation', 'confirmed_participation']).exists():
-                return '신청 완료'
+                return 'Registration Confirmed'
             # 유저 성별 / 실력 확인
             if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or obj.tier not in user.tiers.all():
-                return '신청 불가능'
+                return 'Registration Unavailable'
             # 대기 상태 여부
             elif current_applicants_count >= obj.max_participants:
-                return '대기 가능'
+                return 'Waitlist Available'
             # 모든 상황이 부합할 경우 신청 가능
             else:
-                return '신청 가능'
+                return 'Registration Available'
         # 대회 진행중    
         elif obj.status == 'during':
-            return '대회 진행중'
+            return 'during'
         # 대회 종료
         else:
-            return '대회 종료'
+            return 'ended'
         
     def get_waiting_count(self, obj):
         current_applicants_count = obj.applicants.filter(status__in=['unpaid', 'confirmed_participation', 'pending_participation']).count()

@@ -375,7 +375,7 @@ class CompetitionApplyResultView(APIView):
         if competition.match_type.type == 'single':
         
             try :
-                applicant_1 = Applicant.objects.filter(applicant_info__competition=competition,user=user).first()
+                applicant_1 = Applicant.objects.get(applicant_info__competition=competition,user=user, applicant_info__status__in=['unpaid','pending_participation','confirmed_participation'])
             except Applicant.DoesNotExist :
                 return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -389,11 +389,10 @@ class CompetitionApplyResultView(APIView):
         # applicant_info fk가 똑같은 유저
         else : 
             try :
-                applicant_1 = Applicant.objects.filter(applicant_info__competition=competition,user=user).first()
+                applicant_1 = Applicant.objects.get(applicant_info__competition=competition,user=user, applicant_info__status__in=['unpaid','pending_participation','confirmed_participation'])
         
             except Applicant.DoesNotExist :
-                return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
-
+                return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)            
             find_info = applicant_1.applicant_info
             applicant_1,applicant_2 = Applicant.objects.filter(applicant_info=find_info)
             applicant1_serializer = CompetitionApplicantSerializer(applicant_1)
@@ -413,7 +412,6 @@ class CompetitionApplyResultView(APIView):
                         'competitionInfo': competition_serializer.data}
 
         return Response(response_data, status=status.HTTP_200_OK)
-
 
 ## 신청 취소
 class CompetitionCancelView(APIView):
