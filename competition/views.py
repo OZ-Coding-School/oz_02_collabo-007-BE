@@ -394,12 +394,17 @@ class CompetitionApplyResultView(APIView):
             except Applicant.DoesNotExist :
                 return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)            
             find_info = applicant_1.applicant_info
-            applicant_1,applicant_2 = Applicant.objects.filter(applicant_info=find_info)
-            applicant1_serializer = CompetitionApplicantSerializer(applicant_1)
-            applicant2_serializer = CompetitionApplicantSerializer(applicant_2)
+            applicant_list = Applicant.objects.filter(applicant_info=find_info)
 
-            applicants = [applicant1_serializer.data, applicant2_serializer.data]
+            if len(applicant_list) > 1:
 
+                applicant_1,applicant_2 = Applicant.objects.filter(applicant_info=find_info)
+                applicant1_serializer = CompetitionApplicantSerializer(applicant_1)
+                applicant2_serializer = CompetitionApplicantSerializer(applicant_2)
+
+                applicants = [applicant1_serializer.data, applicant2_serializer.data]
+            else :
+                return Response({'error':'신청자 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
 
         # 대회 신청정보
         applicant_infos = applicant_1.applicant_info

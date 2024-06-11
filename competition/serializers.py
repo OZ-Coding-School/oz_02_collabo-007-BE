@@ -204,7 +204,7 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
 
         if latest_match:
             # 매치 정보를 시리얼화하여 반환
-            return MyCompetitionMatchSerializer(latest_match).data
+            return MyCompetitionMatchSerializer(latest_match, context={'request': self.context['request']}).data
         
         return None
 
