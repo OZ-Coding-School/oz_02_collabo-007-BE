@@ -2,7 +2,9 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from club.models import Club
 from club_applicant.models import ClubApplicant
+from custom_admin.common.serializers import AdminTierSerializer
 from team.models import Team
+from tier.models import Tier
 
 
 class ClubListSerializer(serializers.ModelSerializer):
@@ -55,11 +57,35 @@ class MemberSerializer(serializers.ModelSerializer):
     team = TeamSerializer(read_only=True)
     team_id = serializers.PrimaryKeyRelatedField(
         queryset=Team.objects.all(), write_only=True, source='team', required=False)
+    tiers = AdminTierSerializer(many=True, read_only=True)
+    tiers_id = serializers.PrimaryKeyRelatedField(
+        queryset=Tier.objects.all(), write_only=True, source='tiers', required=False, many=True)
 
     class Meta:
         model = User
-        fields = ('id', 'phone', 'username', 'team', 'team_id')
-        read_only_fields = ('id', 'phone', 'username', 'team')
+        fields = ('id', 'phone', 'username', 'team',
+                  'team_id', 'tiers', 'tiers_id')
+        read_only_fields = ('id', 'phone', 'username', 'team', 'tiers')
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        tiers_representation = {}
+
+        for tier in representation['tiers']:
+            try:
+                match_type = tier.get('match_type', {}).get('type')
+                if match_type:
+                    tiers_representation[match_type] = {
+                        'id': tier['id'],
+                        'name': tier['name']
+                    }
+            except KeyError:
+                continue
+            except TypeError:
+                continue
+
+        representation['tiers'] = tiers_representation
+        return representation
 
 
 class ApplicationSerializer(serializers.ModelSerializer):

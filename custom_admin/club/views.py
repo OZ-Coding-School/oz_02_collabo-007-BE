@@ -9,8 +9,9 @@ from rest_framework.decorators import action, permission_classes, authentication
 from custom_admin.service.club_service import ClubService
 from custom_admin.service.image_service import ImageService
 from rest_framework.response import Response
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from club_applicant.models import ClubApplicant
+from tier.models import Tier
 
 
 from team.models import Team
@@ -190,10 +191,20 @@ class ClubViewSet(viewsets.ModelViewSet):
             404: 'Not Found'
         }
     )
+    @action(detail=True, methods=['get'], url_name='members', url_path='members')
+    def members(self, request, *args, **kwargs):
+        club = self.get_object()
+        members = User.objects.filter(club=club).select_related('team').prefetch_related(
+            Prefetch(
+                'tiers', queryset=Tier.objects.select_related('match_type'))
+        )
+        serializer = MemberSerializer(members, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     @swagger_auto_schema(
         method='put',
         operation_summary='멤버 수정',
-        operation_description='클럽 멤버의 팀을 수정합니다.',
+        operation_description='클럽 멤버의 팀과 부를 수정합니다.',
         responses={
             200: MemberSerializer,
             400: 'Bad Request',
@@ -201,25 +212,16 @@ class ClubViewSet(viewsets.ModelViewSet):
             403: 'Permission Denied',
         }
     )
-    @action(detail=True, methods=['get', 'put'], url_name='members', url_path='members')
-    def members(self, request, *args, **kwargs):
-        club = self.get_object()
-
-        if request.method == 'GET':
-            members = User.objects.filter(club=club).select_related('team')
-            return Response(MemberSerializer(members, many=True).data, status=status.HTTP_200_OK)
-
-        if request.method == 'PUT':
-            return self._update_member(request)
-
-    def _update_member(self, request):
+    @action(detail=True, methods=['put'], url_name='update_member', url_path=r'members/(?P<user_id>\d+)')
+    def update_member(self, request, *args, **kwargs):
+        club_service = ClubService()
         try:
-            user = User.objects.get(pk=request.data['user_id'])
-            user.team_id = request.data['team_id']
-            user.save()
+            user_id = kwargs.get('user_id')
+            user = User.objects.get(id=user_id)
+            club_service.update_member(user, request.data)
             return Response(MemberSerializer(user).data, status=status.HTTP_200_OK)
         except User.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': '멤버 정보가 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
