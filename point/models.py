@@ -4,6 +4,7 @@ from team.models import Team
 from matchtype.models import MatchType
 from tier.models import Tier
 from users.models import CustomUser
+from match.models import Match
 
 
 class Point(TimeStampedModel):
@@ -14,6 +15,7 @@ class Point(TimeStampedModel):
     team = models.ForeignKey(Team, models.DO_NOTHING, blank=True, null=True)
     match_type = models.ForeignKey(MatchType, models.DO_NOTHING, blank=True, null=True)
     user = models.ForeignKey(CustomUser, models.DO_NOTHING, blank=True, null=True)
+    match = models.ForeignKey(Match, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         db_table = 'point'
