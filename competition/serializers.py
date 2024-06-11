@@ -50,16 +50,16 @@ class CompetitionListSerializer(serializers.ModelSerializer):
         if obj.status == 'before':
             # 신청 여부 확인
             if Applicant.objects.filter(user=user, applicant_info__competition=obj, applicant_info__status__in=['unpaid', 'pending_participation', 'confirmed_participation']).exists():
-                return 'Registration Confirmed'
+                return 'Registration Confirmed' # 신청완료
             # 유저 성별 / 실력 확인
             if (user.gender != obj.match_type.gender and obj.match_type.gender != 'mix')  or obj.tier not in user.tiers.all():
-                return 'Registration Unavailable'
+                return 'Registration Unavailable' # 신청불가
             # 대기 상태 여부
             elif current_applicants_count >= obj.max_participants:
-                return 'Waitlist Available'
+                return 'Waitlist Available' # 대기 가능
             # 모든 상황이 부합할 경우 신청 가능
             else:
-                return 'Registration Available'
+                return 'Registration Available' # 신청 가능
         # 대회 진행중    
         elif obj.status == 'during':
             return 'during'

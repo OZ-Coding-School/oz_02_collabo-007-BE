@@ -373,7 +373,7 @@ class CompetitionApplyResultView(APIView):
         
         # 단식 대회의 경우
         if competition.match_type.type == 'single':
-        
+            # 신청정보가 입금 대기, 참가 대기중, 참가완료인 경우만
             try :
                 applicant_1 = Applicant.objects.get(applicant_info__competition=competition,user=user, applicant_info__status__in=['unpaid','pending_participation','confirmed_participation'])
             except Applicant.DoesNotExist :
