@@ -2,10 +2,14 @@ from django.shortcuts import get_object_or_404
 from applicant_info.models import ApplicantInfo
 from django.db import transaction
 from competition.models import Competition
+from matchtype.models import MatchType
 from participant.models import Participant
 from participant_info.models import ParticipantInfo
 from payments.models import Payment, Refund
 from match.models import Match
+from point.models import Point
+from tier.models import Tier
+from users.models import CustomUser
 
 
 class CompetitionService:
@@ -81,6 +85,46 @@ class CompetitionService:
             match.save()
 
         return match
+
+    def add_points_to_match(self, match_id, points_data):
+        """
+        승점을 추가하는 메서드.
+
+        Args:
+            match_id: Match 객체의 id
+            points_data: AddPointsSerializer로 직렬화된 데이터
+            e.g. {
+                'points_array': [
+                    {
+                        'points': 10,
+                        'expired_date': '2021-12-31',
+                        'user_id': 1
+                    },
+                    {
+                        'points': 20,
+                        'expired_date': '2021-12-31',
+                        'user_id': 2
+                    }
+                ],
+                'tier_id': 1,
+                'match_type_id': 1
+            }
+        """
+        with transaction.atomic():
+            match = get_object_or_404(Match, id=match_id)
+
+            tier = self._get_object_or_404(Tier, pk=points_data.get('tier_id'))
+            match_type = self._get_object_or_404(
+                MatchType, pk=points_data.get('match_type_id'))
+
+            points_array = points_data['points_array']
+
+            for point_entry in points_array:
+                user = self._get_object_or_404(
+                    CustomUser, pk=point_entry.get('user_id'))
+                self._create_point(match, user, point_entry, tier, match_type)
+
+        return None
 
     def _confirm_payment(self, applicant_info: ApplicantInfo):
         """
@@ -205,3 +249,29 @@ class CompetitionService:
         result_set.save()
 
         return result_set
+
+    def _create_point(self, match, user, point_entry, tier, match_type):
+        """
+        경기에 승점을 추가하는 메서드.
+        """
+        Point.objects.create(
+            points=point_entry['points'],
+            expired_date=point_entry.get('expired_date'),
+            tier=tier,
+            match_type=match_type,
+            match=match,
+            user=user
+        )
+
+    def _get_object_or_404(self, model, **kwargs):
+        """
+        주어진 조건에 맞는 객체를 반환하는 메서드.
+
+        Args:
+            model: 모델 클래스
+            **kwargs: 필터링 조건
+
+        Returns:
+            object: 주어진 조건에 맞는 객체
+        """
+        return get_object_or_404(model, **kwargs)

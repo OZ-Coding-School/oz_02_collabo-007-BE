@@ -19,3 +19,15 @@ class MatchDetailSerializer(serializers.ModelSerializer):
         model = Match
         fields = ('id', 'sets',  'winner')
         read_only_fields = ['id']
+
+
+class PointEntrySerializer(serializers.Serializer):
+    points = serializers.IntegerField(required=True)
+    expired_date = serializers.DateTimeField(required=True)
+    user_id = serializers.IntegerField(required=True)
+
+
+class AddPointsSerializer(serializers.Serializer):
+    points_array = PointEntrySerializer(many=True)
+    tier_id = serializers.IntegerField(required=True)
+    match_type_id = serializers.IntegerField(required=True)
