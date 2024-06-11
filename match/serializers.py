@@ -43,12 +43,12 @@ class MatchSerializer(serializers.ModelSerializer):
 class MyCompetitionMatchSerializer(serializers.ModelSerializer):
     
     winner_name = serializers.SerializerMethodField()
-    a_team_user = serializers.SerializerMethodField()
-    b_team_user = serializers.SerializerMethodField()
+    myteam_user = serializers.SerializerMethodField()
+    opponent_user = serializers.SerializerMethodField()
 
     class Meta:
         model = Match
-        fields = ['id', 'match_round', 'match_number', 'court_number', 'winner_name', 'a_team_user', 'b_team_user']
+        fields = ['id', 'match_round', 'match_number', 'court_number', 'winner_name', 'myteam_user', 'opponent_user']
 
 
     def get_winner_name(self, obj):
@@ -77,4 +77,26 @@ class MyCompetitionMatchSerializer(serializers.ModelSerializer):
             if b_team.exists():
                 b_team_users = [b_team_member.user.username for b_team_member in b_team]
                 return b_team_users
+        return None
+    
+    def get_myteam_user(self, obj):
+        user = self.context['request'].user
+        a_team_users = self.get_a_team_user(obj)
+        b_team_users = self.get_b_team_user(obj)
+
+        if a_team_users and user.username in a_team_users:
+            return a_team_users
+        elif b_team_users and user.username in b_team_users:
+            return b_team_users
+        return None
+
+    def get_opponent_user(self, obj):
+        user = self.context['request'].user
+        a_team_users = self.get_a_team_user(obj)
+        b_team_users = self.get_b_team_user(obj)
+
+        if a_team_users and user.username in a_team_users:
+            return b_team_users
+        elif b_team_users and user.username in b_team_users:
+            return a_team_users
         return None
