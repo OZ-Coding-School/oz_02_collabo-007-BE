@@ -351,3 +351,48 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
             serializer = MatchResultSerializer(match)
             return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='대회 시작',
+        operation_description='대회를 시작합니다.',
+        responses={
+            200: '대회가 시작되었습니다.',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['post'], url_path='start', url_name='start-competition')
+    def start_competition(self, request, pk=None):
+        try:
+            competition = self.get_object()
+            self.competition_service.start_competition(competition)
+        except Exception as e:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        return Response('대회가 시작되었습니다.', status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='대회 종료',
+        operation_description='대회를 종료합니다.',
+        responses={
+            200: '대회가 종료되었습니다.',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['post'], url_path='end', url_name='end-competition')
+    def end_competition(self, request, pk=None):
+        try:
+            competition = self.get_object()
+            winner_id = request.data.get('winner_id')
+            runner_up_id = request.data.get('runner_up_id')
+            self.competition_service.end_competition(
+                competition, winner_id=winner_id, runner_up_id=runner_up_id)
+        except Exception as e:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+        return Response('대회가 종료되었습니다.', status=status.HTTP_200_OK)

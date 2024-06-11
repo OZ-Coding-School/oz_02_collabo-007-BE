@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from applicant_info.models import ApplicantInfo
 from django.db import transaction
-from competition.models import Competition
+from competition.models import Competition, CompetitionResult
 from matchtype.models import MatchType
 from participant.models import Participant
 from participant_info.models import ParticipantInfo
@@ -123,6 +123,51 @@ class CompetitionService:
                 user = self._get_object_or_404(
                     CustomUser, pk=point_entry.get('user_id'))
                 self._create_point(match, user, point_entry, tier, match_type)
+
+        return None
+
+    def start_competition(self, competition: Competition):
+        """
+        대회를 시작하는 메서드.
+        """
+        with transaction.atomic():
+            competition.start_competition()
+
+        return None
+
+    def end_competition(self, competition: Competition, winner_id, runner_up_id):
+        """
+        대회를 종료하는 메서드.
+        winner_id와 runner_up_id가 주어진 경우, 우승자와 준우승자를 설정합니다.
+
+        Args:
+            competition: Competition 객체
+            winner_id: 우승자의 ParticipantInfo 객체의 id
+            runner_up_id: 준우승자의 ParticipantInfo 객체의 id
+
+        Returns:
+            None
+        """
+        with transaction.atomic():
+            competition.end_competition()
+            if winner_id:
+                winner = self._get_object_or_404(
+                    ParticipantInfo, pk=winner_id)
+                if winner.competition != competition:
+                    raise ValueError('우승자의 대회 정보가 일치하지 않습니다.')
+                competition_result = CompetitionResult.objects.get_or_create(
+                    competition=competition)[0]
+                competition_result.winner = winner
+                competition_result.save()
+            if runner_up_id:
+                runner_up = self._get_object_or_404(
+                    ParticipantInfo, pk=runner_up_id)
+                if runner_up.competition != competition:
+                    raise ValueError('준우승자의 대회 정보가 일치하지 않습니다.')
+                competition_result = CompetitionResult.objects.get_or_create(
+                    competition=competition)[0]
+                competition_result.runner_up = runner_up
+                competition_result.save()
 
         return None
 
