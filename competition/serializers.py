@@ -212,7 +212,7 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
     def get_apply_status(self, obj):
         user = self.context['request'].user
 
-        applicant = Applicant.objects.filter(user=user,applicant_info__competition=obj).first()
+        applicant = Applicant.objects.filter(user=user,applicant_info__competition=obj).order_by('-created_at').first()
         
         if applicant:
             return applicant.applicant_info.status
