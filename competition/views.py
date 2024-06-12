@@ -508,9 +508,10 @@ class MyCompetitionListView(APIView):
 
 
         # 참가 신청한 대회 - 진행전 - 대기포함
+        # applicant_info status가 취소되지 않은 것들만
         before_list = Competition.objects.filter(
             status='before',
-            id__in=applicant_competitions 
+            id__in=applicant_competitions, applicants__status__in=['unpaid','pending_participation','confirmed_participation']
         ).order_by('start_date')
 
         before_my_competitions = MyCompetitionSerializer(before_list, many=True, context={'request': request}).data
