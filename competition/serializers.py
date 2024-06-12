@@ -182,13 +182,39 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
     tier = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
+    match_status = serializers.SerializerMethodField()
 
     
     class Meta:
         model = Competition
         fields = ['id', 'name', 'start_date', 'tier', 'match_type_details', 'total_rounds', 'total_sets', 'location', 'address', 
-                'description', 'rule', 'phone', 'site_link', 'image_url', 'status', 'apply_status','matches' ]
+                'description', 'rule', 'phone', 'site_link', 'image_url', 'status', 'apply_status','match_status','matches' ]
     
+
+    def get_match_status(self, obj):
+
+        user = self.context['request'].user
+
+        matches = Match.objects.filter(
+            Q(a_team__participants__user=user) | Q(b_team__participants__user=user),
+            competition=obj
+        )
+
+        # 유저의 applicant_info의 waiting_number
+        applicant = Applicant.objects.filter(user=user,applicant_info__competition=obj).order_by('-created_at').first()
+
+        if applicant:
+            waiting_number = applicant.applicant_info.waiting_number
+        else:
+            waiting_number = None
+
+        if waiting_number is not None:
+            return 'pending_participation'
+
+        if not matches :
+            return 'unassigned_match_competitions'
+        
+
     # matches 필드 추가
     def get_matches(self, obj):
         # 로그인한 사용자 정보 가져오기
