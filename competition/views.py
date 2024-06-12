@@ -15,14 +15,14 @@ from djangorestframework_camel_case.parser import CamelCaseFormParser, CamelCase
 from rest_framework.parsers import MultiPartParser, FormParser
 
 
-from .models import Competition
+from .models import Competition, CompetitionResult
 from users.models import CustomUser
 from matchtype.models import MatchType
 from applicant_info.models import ApplicantInfo
 from applicant.models import Applicant
 from participant.models import Participant
 from participant_info.models import ParticipantInfo
-from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplyInfoSerializer, CompetitionApplySerializer, MyCompetitionSerializer
+from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplyInfoSerializer, CompetitionApplySerializer, MyCompetitionSerializer, CompetitionResultSerializer
 from applicant_info.serializers import ApplicantInfoSerializer, CompetitionApplicantInfoSerializer
 from applicant.serializers import ApplicantSerializer, CompetitionApplicantSerializer
 from users.serializers import UserWithClubInfoSerializer
@@ -587,3 +587,22 @@ class MyCompetitionListView(APIView):
         
 
         return Response(competition_list, status=status.HTTP_200_OK)
+
+
+## 대괴 결과 조회
+class CompetitionResultView(APIView):
+    """
+    대회 결과 조회
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request, pk):
+        try:
+            competition = Competition.objects.get(pk=pk)
+            result = CompetitionResult.objects.get(competition=competition)
+            serializer = CompetitionResultSerializer(result)
+            return Response(serializer.data)
+        except Competition.DoesNotExist:
+            return Response({'error': '대회를 찾을 수 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
+        except CompetitionResult.DoesNotExist:
+            return Response({'error': '대회 결과를 찾을 수 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
