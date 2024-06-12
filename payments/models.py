@@ -13,6 +13,9 @@ class Payment(TimeStampedModel, SoftDeleteModel):
     def __str__(self):
         return f"{self.id} / {self.amount}"
 
+    class Meta:
+        db_table = 'payment'
+
 
 class Refund(TimeStampedModel, SoftDeleteModel):
     id = models.AutoField(primary_key=True)
@@ -23,3 +26,6 @@ class Refund(TimeStampedModel, SoftDeleteModel):
 
     def __str__(self):
         return f"Refund for {self.id} / {self.amount}"
+
+    class Meta:
+        db_table = 'refund'

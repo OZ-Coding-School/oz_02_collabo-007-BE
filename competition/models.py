@@ -49,6 +49,8 @@ class Competition(TimeStampedModel, SoftDeleteModel):
     deposit_date = models.IntegerField(null=True, help_text="입금기한_신청기준 몇일")
     competition_type = models.CharField(
         max_length=10, choices=TYPE_CHOICES)  # 추가
+    team_total_games = models.IntegerField(
+        blank=True, null=True, help_text="팀 시합 경기수")
 
     def __str__(self):
         return self.name
@@ -83,3 +85,15 @@ class CompetitionResult(TimeStampedModel, SoftDeleteModel):
 
     class Meta:
         db_table = 'competition_result'
+
+
+class CompetitionTeamMatch(TimeStampedModel, SoftDeleteModel):
+    id = models.AutoField(primary_key=True)
+    competition = models.ForeignKey(
+        Competition, models.DO_NOTHING, related_name='team_match_list')
+    match_type = models.ForeignKey(MatchType, models.DO_NOTHING)
+    tier = models.ForeignKey(Tier, models.DO_NOTHING, blank=True, null=True)
+    game_number = models.IntegerField()
+
+    class Meta:
+        db_table = 'competition_team_match'
