@@ -496,7 +496,7 @@ class MyCompetitionListView(APIView):
 
         user = request.user
         participant_competitions = Participant.objects.filter(user=user).values_list('participant_info__competition', flat=True)
-        applicant_competitions = Applicant.objects.filter(user=user).values_list('applicant_info__competition', flat=True)
+        applicant_competitions = Applicant.objects.filter(user=user,applicant_info__status__in=['unpaid','pending_participation','confirmed_participation']).values_list('applicant_info__competition', flat=True)
 
         # 쿼리 파라미터로 count, status 받기
         competition_count = request.query_params.get('count', None)
@@ -511,8 +511,8 @@ class MyCompetitionListView(APIView):
         # applicant_info status가 취소되지 않은 것들만
         before_list = Competition.objects.filter(
             status='before',
-            id__in=applicant_competitions, applicants__status__in=['unpaid','pending_participation','confirmed_participation']
-        ).order_by('start_date').distinct()
+            id__in=applicant_competitions).order_by('start_date').distinct()
+
 
         before_my_competitions = MyCompetitionSerializer(before_list, many=True, context={'request': request}).data
 
