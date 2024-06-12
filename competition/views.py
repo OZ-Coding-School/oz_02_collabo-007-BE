@@ -512,7 +512,7 @@ class MyCompetitionListView(APIView):
         before_list = Competition.objects.filter(
             status='before',
             id__in=applicant_competitions, applicants__status__in=['unpaid','pending_participation','confirmed_participation']
-        ).order_by('start_date')
+        ).order_by('start_date').distinct()
 
         before_my_competitions = MyCompetitionSerializer(before_list, many=True, context={'request': request}).data
 
@@ -522,7 +522,7 @@ class MyCompetitionListView(APIView):
         during_list = Competition.objects.filter(
             status='during',
             id__in=participant_competitions
-        ).order_by('-start_date')
+        ).order_by('-start_date').distinct()
 
         during_my_competitions = MyCompetitionSerializer(during_list, many=True, context={'request': request}).data
 
@@ -530,7 +530,7 @@ class MyCompetitionListView(APIView):
         ended_list = Competition.objects.filter(
             status='ended',
             id__in=participant_competitions
-        ).order_by('-start_date')
+        ).order_by('-start_date').distinct()
 
         ended_my_competitions = MyCompetitionSerializer(ended_list, many=True, context={'request': request}).data
 
@@ -540,7 +540,7 @@ class MyCompetitionListView(APIView):
 
         # 신청 가능한 대회 중 시작되지 않은 대회
         not_apply_list = Competition.objects.filter(
-            status='before', tier__in=user_tiers).exclude(id__in=applicant_competitions).order_by('start_date')
+            status='before', tier__in=user_tiers).exclude(id__in=applicant_competitions).order_by('start_date').distinct()
 
 
         not_apply_competitions = MyCompetitionSerializer(not_apply_list, many=True, context={'request': request}).data
