@@ -1,10 +1,12 @@
 from django.utils.timezone import now
 from rest_framework import serializers
-from .models import Competition
+from .models import Competition, CompetitionResult
 from applicant.models import Applicant
+from participant.models import Participant
 from applicant_info.models import ApplicantInfo
 from matchtype.serializers import MatchTypeSerializer
 from image_url.serializers import ImageUrlSerializer
+from participant.serializers import ParticipantSerializer
 from match.serializers import MyCompetitionMatchSerializer
 from match.models import Match
 from django.db.models import Q
@@ -166,15 +168,6 @@ class CompetitionApplySerializer(serializers.ModelSerializer):
     
 
 
-## 대회 현황
-class CompetitionStatusSerializer(serializers.ModelSerializer):
-    match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
-    
-    
-    class Meta:
-        fields = ['name', 'match_type_details', 'tier', ]
-
-
 ## 참가 신청한 대회 정보 
 class MyCompetitionSerializer(serializers.ModelSerializer):
     matches = serializers.SerializerMethodField()
@@ -255,3 +248,30 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
             return obj.image_url.image_url
         return None
 
+
+
+## 대회 결과 조회
+class CompetitionResultSerializer(serializers.ModelSerializer):
+    competition_name = serializers.SerializerMethodField()
+    match_type_details = MatchTypeSerializer(source='competition.match_type', read_only=True)
+    tier = serializers.SerializerMethodField()
+    winner_participants = serializers.SerializerMethodField()
+    runner_up_participants = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CompetitionResult
+        fields = ['competition', 'competition_name', 'match_type_details', 'tier', 'winner', 'winner_participants', 'runner_up', 'runner_up_participants']
+
+    def get_competition_name(self, obj):
+        return obj.competition.name
+
+    def get_tier(self, obj):
+        return obj.competition.tier.name if obj.competition.tier else None
+
+    def get_winner_participants(self, obj):
+        participants = Participant.objects.filter(participant_info=obj.winner)
+        return ParticipantSerializer(participants, many=True).data
+
+    def get_runner_up_participants(self, obj):
+        participants = Participant.objects.filter(participant_info=obj.runner_up)
+        return ParticipantSerializer(participants, many=True).data
