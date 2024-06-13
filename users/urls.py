@@ -7,9 +7,11 @@ from .views import(
                     RefreshAccessTokenView,
                     LogoutView,
                     MyProfileView,
+                    MyprofileRankingsView,
                     UserDetailView,
                     UpdateMyProfileAPIView,
-                    ChangePasswordView
+                    ChangePasswordView,
+                    SetMainRankingView,
 )
 
 
@@ -21,9 +23,10 @@ urlpatterns = [
     path('auth/signin/', LoginView.as_view(), name='login'), # 로그인 api
     path('auth/logout/', LogoutView.as_view(), name='logout'), # 로그아웃 api
     path('user/myprofile/', MyProfileView.as_view(), name='my-profile'), # 내 프로필 상세정보 조회
+    path('user/myprofile/ranking/', MyprofileRankingsView.as_view(), name='my-profile-ranking'), # 내 프로필 랭킹 조회
+    path('user/myprofile/main/ranking/', SetMainRankingView.as_view(), name='set-main-ranking'), # 대표랭킹 설정 API
     path('user/<int:pk>/', UserDetailView.as_view(), name='user-detail'), # 특정 유저 상세정보 조회
     path('user/myprofile/update/', UpdateMyProfileAPIView.as_view(), name='update-my-profile'), # 내 프로필 업데이트 api
     path('user/myprofile/update/password/', ChangePasswordView.as_view(), name='change-password'), # 비밀번호 변경 api
 ]
-
 
