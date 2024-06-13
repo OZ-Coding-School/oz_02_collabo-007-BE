@@ -176,13 +176,36 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
     match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
     match_status = serializers.SerializerMethodField()
+    myteam = serializers.SerializerMethodField()
 
     
     class Meta:
         model = Competition
         fields = ['id', 'name', 'start_date', 'tier', 'match_type_details', 'total_rounds', 'total_sets', 'location', 'address', 
-                'description', 'rule', 'phone', 'site_link', 'image_url', 'status', 'apply_status','match_status','matches' ]
+                'description', 'rule', 'phone', 'site_link', 'image_url', 'status', 'apply_status','myteam','match_status','matches' ]
     
+    def get_myteam(self, obj):
+        
+        user = self.context['request'].user
+
+        myteam = Applicant.objects.filter(user=user,applicant_info__competition=obj).order_by('-created_at').first()
+
+        if myteam :
+            info = myteam.applicant_info
+
+            myteam_all = Applicant.objects.filter(applicant_info=info)
+
+            myteam1 = [myteamuser.user.username for myteamuser in myteam_all if myteamuser.user == user] 
+            myteam2 = [myteamuser.user.username for myteamuser in myteam_all if myteamuser.user != user]
+            myteamuser = [myteam1+myteam2]
+
+        else:
+            return None
+
+        
+        return myteamuser
+        
+
 
     def get_match_status(self, obj):
 
