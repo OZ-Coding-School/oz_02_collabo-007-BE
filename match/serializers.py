@@ -114,19 +114,27 @@ class MatchRecordSerializer(serializers.ModelSerializer):
     def get_user_matches(self, obj):
         user_id = obj.id
         user_participants = Participant.objects.filter(user_id=user_id)
-        user_matches_data = {}
+        user_matches_data = []
         for participant in user_participants:
-            competition_id = participant.participant_info.competition.id
-            if competition_id not in user_matches_data:
-                user_matches_data[competition_id] = []
+            competition = participant.participant_info.competition
+            competition_data = {
+                'name': str(competition.name),
+                'match_type_details': {
+                    'gender': competition.match_type.gender,
+                    'type': competition.match_type.type
+                },
+                'tier': str(competition.tier),
+                'start': competition.start_date }
             user_matches = Match.objects.filter(Q(a_team=participant.participant_info) | Q(b_team=participant.participant_info))
-            user_matches_data[competition_id].extend(MatchSerializer(user_matches, many=True).data)
+            matches_data = MatchSerializer(user_matches, many=True).data
+            competition_data['matches'] = matches_data
+            user_matches_data.append(competition_data)
         return user_matches_data
     
     def get_user_record(self, obj):
         user_id = obj.id
         user_matches = self.get_user_matches(obj)
-        total_matches = sum(len(matches) for matches in user_matches.values())
-        total_wins = sum(1 for matches in user_matches.values() for match in matches if match.get('winner_user') and match['winner_user'][0]['id'] == user_id)
-        total_losses = total_matches - total_wins
-        return f"{total_matches}전 {total_wins}승 {total_losses}패"
+        matches = sum(len(match['matches']) for match in user_matches)
+        wins = sum(1 for match in user_matches for match_data in match['matches'] if match_data.get('winner_user') and user_id in [user['id'] for user in match_data['winner_user']])
+        losses = matches - wins
+        return {'wins': wins, 'losses': losses}
