@@ -197,7 +197,7 @@ class MyCompetitionSerializer(serializers.ModelSerializer):
 
             myteam1 = [myteamuser.user.username for myteamuser in myteam_all if myteamuser.user == user] 
             myteam2 = [myteamuser.user.username for myteamuser in myteam_all if myteamuser.user != user]
-            myteamuser = [myteam1+myteam2]
+            myteamuser = myteam1+myteam2
 
         else:
             return None
