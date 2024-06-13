@@ -22,7 +22,7 @@ class UserRankingView(APIView):
             openapi.Parameter('year', openapi.IN_QUERY, description="default= 실시간 랭킹", type=openapi.TYPE_INTEGER),
             openapi.Parameter('gender', openapi.IN_QUERY, description="default= male", type=openapi.TYPE_STRING),
             openapi.Parameter('type', openapi.IN_QUERY, description="default= single", type=openapi.TYPE_STRING),
-            openapi.Parameter('tier', openapi.IN_QUERY, description="default= Null", type=openapi.TYPE_STRING),
+            openapi.Parameter('tier', openapi.IN_QUERY, description="default= 1", type=openapi.TYPE_INTEGER),
             openapi.Parameter('name', openapi.IN_QUERY, description="deafault= Null", type=openapi.TYPE_STRING)
         ],
         responses={
@@ -54,7 +54,7 @@ class UserRankingView(APIView):
             
             # 타입 / 젠더 / 티어 에 대한 필터링
             match_type_param = request.query_params.get('type', 'single') # 디폴트 값 지정 single
-            gender_param = request.query_params.get('gender', 'male') #디폴트 값 지정 male
+            gender_param = request.query_params.get('gender', 'male') # 디폴트 값 지정 male
             tier_param = request.query_params.get('tier')
             
             if match_type_param:
@@ -62,7 +62,7 @@ class UserRankingView(APIView):
             if gender_param:
                 queryset = queryset.filter(match_type__gender=gender_param)
             if tier_param:
-                queryset = queryset.filter(tier__name=tier_param)
+                queryset = queryset.filter(tier__id=tier_param)
                 
                 
             # 타입, 젠더, 티어에 따라 필터링된 쿼리셋에 대해 포인트 합산 진행
