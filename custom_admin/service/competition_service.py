@@ -1,7 +1,8 @@
+import random
 from django.shortcuts import get_object_or_404
 from applicant_info.models import ApplicantInfo
 from django.db import transaction
-from competition.models import Competition, CompetitionResult
+from competition.models import Competition, CompetitionResult, CompetitionTeamMatch
 from matchtype.models import MatchType
 from participant.models import Participant
 from participant_info.models import ParticipantInfo
@@ -37,9 +38,8 @@ class CompetitionService:
         """
         with transaction.atomic():
             payment = Payment.objects.get(applicant_info=applicant_info)
-            if payment is None:
-                return None
-            Refund.objects.create(payment=payment)
+            if payment:
+                Refund.objects.create(payment=payment)
         return None
 
     def create_match(self, match_data):
@@ -150,26 +150,71 @@ class CompetitionService:
         """
         with transaction.atomic():
             competition.end_competition()
+            competition_result = CompetitionResult.objects.get_or_create(
+                competition=competition)[0]
             if winner_id:
                 winner = self._get_object_or_404(
                     ParticipantInfo, pk=winner_id)
                 if winner.competition != competition:
                     raise ValueError('우승자의 대회 정보가 일치하지 않습니다.')
-                competition_result = CompetitionResult.objects.get_or_create(
-                    competition=competition)[0]
                 competition_result.winner = winner
                 competition_result.save()
+
             if runner_up_id:
                 runner_up = self._get_object_or_404(
                     ParticipantInfo, pk=runner_up_id)
                 if runner_up.competition != competition:
                     raise ValueError('준우승자의 대회 정보가 일치하지 않습니다.')
-                competition_result = CompetitionResult.objects.get_or_create(
-                    competition=competition)[0]
                 competition_result.runner_up = runner_up
                 competition_result.save()
 
         return None
+
+    def create_competition(self, competition_data):
+        """
+        대회를 생성하는 메서드.
+        """
+        with transaction.atomic():
+            competition = Competition.objects.create(
+                name=competition_data.get('name'),
+                description=competition_data.get('description'),
+                start_date=competition_data.get('start_date'),
+                end_date=competition_data.get('end_date'),
+                status='before',
+                total_rounds=competition_data.get('total_rounds'),
+                total_sets=competition_data.get('total_sets'),
+                rule=competition_data.get('rule'),
+                address=competition_data.get('address'),
+                location=competition_data.get('location'),
+                code=self._make_competition_code(),
+                phone=competition_data.get('phone'),
+                fee=competition_data.get('fee'),
+                bank_name=competition_data.get('bank_name'),
+                bank_account_number=competition_data.get(
+                    'bank_account_number'),
+                bank_account_name=competition_data.get('bank_account_name'),
+                site_link=competition_data.get('site_link'),
+                match_type=competition_data.get('match_type'),
+                tier=competition_data.get('tier'),
+                max_participants=self._get_max_participants(
+                    competition_data.get('competition_type'),
+                    competition_data.get('total_rounds'),
+                    competition_data.get('max_participants')
+                ),
+                deposit_date=competition_data.get('deposit_date'),
+                competition_type=competition_data.get('competition_type'),
+                team_total_games=competition_data.get('team_total_games')
+            )
+
+            if competition.match_type.is_team_game():
+                team_games = competition_data.get('team_games')
+                if len(team_games) != competition.team_total_games:
+                    raise ValueError('팀 경기 수가 일치하지 않습니다.')
+                for index, game in enumerate(team_games):
+                    self._create_competition_team_match(
+                        competition, game['tier_id'], game['match_type_id'], index + 1)
+
+        return competition
 
     def _confirm_payment(self, applicant_info: ApplicantInfo):
         """
@@ -239,9 +284,9 @@ class CompetitionService:
         participant_info = ParticipantInfo.objects.filter(
             applicant_info=applicant_info).delete()
         applicant_info.change_status_to_admin_canceled()
-        if participant_info is None:
-            return applicant_info
-        self._create_participant_from_waiting_list(applicant_info.competition)
+        if participant_info:
+            self._create_participant_from_waiting_list(
+                applicant_info.competition)
 
         return applicant_info
 
@@ -320,3 +365,56 @@ class CompetitionService:
             object: 주어진 조건에 맞는 객체
         """
         return get_object_or_404(model, **kwargs)
+
+    def _make_competition_code(self):
+        """
+        대회 코드를 생성하는 메서드.
+
+        Returns:
+            code: 생성된 대회 코드 (6자리 숫자)
+        """
+        code = random.randint(100000, 999999)
+        return code
+
+    def _get_max_participants(self, competition_type, total_rounds, max_participants):
+        """
+        대회의 최대 참가 인원을 반환하는 메서드.
+        토너먼트일 경우, 최대 참가 인원은 2의 total_rounds 제곱이 됩니다.
+
+        Args:
+            competition_type: 대회 타입 (league, tournament)
+            total_rounds: 총 라운드 수
+            max_participants: 최대 참가 인원
+
+        Returns:
+            max_participants: 최대 참가 인원
+        """
+        if competition_type == 'tournament':
+            return pow(2, total_rounds)
+        return max_participants if max_participants > 0 else None
+
+    def _create_competition_team_match(self, competition, tier_id, match_type_id, game_number):
+        """
+        팀 대회의 팀 경기 정보를 생성하는 메서드.
+
+        Args:
+            competition: Competition 객체
+            tier_id: Tier 객체의 id
+            match_type_id: MatchType 객체의 id
+            game_number: 경기 번호
+
+        Returns:
+            None
+        """
+        tier = self._get_object_or_404(Tier, pk=tier_id)
+        match_type = self._get_object_or_404(MatchType, pk=match_type_id)
+
+        if CompetitionTeamMatch.objects.filter(competition=competition, game_number=game_number).exists():
+            raise ValueError(f'이미 {game_number}번째 경기가 존재합니다.')
+
+        CompetitionTeamMatch.objects.create(
+            competition=competition,
+            tier=tier,
+            match_type=match_type,
+            game_number=game_number
+        )

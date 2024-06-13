@@ -25,3 +25,6 @@ class MatchType(TimeStampedModel):
     
     class Meta:
         db_table = 'match_type'
+        
+    def is_team_game(self):
+        return self.type == 'team'

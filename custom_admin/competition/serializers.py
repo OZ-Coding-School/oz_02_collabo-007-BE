@@ -1,3 +1,4 @@
+import re
 from rest_framework import serializers
 from applicant.models import Applicant
 from applicant_info.models import ApplicantInfo
@@ -31,10 +32,15 @@ class CompetitionListSerializer(serializers.ModelSerializer):
                 'type': obj.match_type.type} if obj.match_type else None
 
 
+class TeamGameSerializer(serializers.Serializer):
+    tier_id = serializers.IntegerField(required=False)
+    match_type_id = serializers.IntegerField(required=False)
+
+
 class CompetitionSerializer(serializers.ModelSerializer):
     tier = serializers.SerializerMethodField()
     tier_id = serializers.PrimaryKeyRelatedField(
-        queryset=Tier.objects.all(), write_only=True, source='tier')
+        queryset=Tier.objects.all(), write_only=True, source='tier', required=False)
     match_type = serializers.SerializerMethodField()
     match_type_id = serializers.PrimaryKeyRelatedField(
         queryset=MatchType.objects.all(), write_only=True, source='match_type')
@@ -42,6 +48,7 @@ class CompetitionSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField(read_only=True)
     delete_image = serializers.BooleanField(
         write_only=True, required=False, default=False)
+    team_games = TeamGameSerializer(many=True, write_only=True, required=False)
 
     def get_image_url(self, obj):
         return obj.image_url.image_url if obj.image_url else None
@@ -54,14 +61,31 @@ class CompetitionSerializer(serializers.ModelSerializer):
                 'gender': obj.match_type.gender,
                 'type': obj.match_type.type} if obj.match_type else None
 
+    def to_internal_value(self, data):
+        internal_value = super().to_internal_value(data)
+        team_games_data = []
+        team_games_pattern = re.compile(r'^team_games\[(\d+)\]\[(\w+)\]$')
+
+        for key, value in data.items():
+            match = team_games_pattern.match(key)
+            if match:
+                index, field = match.groups()
+                index = int(index)
+                while len(team_games_data) <= index:
+                    team_games_data.append({})
+                team_games_data[index][field] = value
+
+        internal_value['team_games'] = team_games_data
+        return internal_value
+
     class Meta:
         model = Competition
         fields = ('id', 'name', 'description', 'start_date', 'end_date', 'status',
                   'total_rounds', 'total_sets', 'rule', 'address', 'location', 'code',
                   'phone', 'fee', 'bank_name', 'bank_account_number', 'bank_account_name',
                   'site_link', 'image_file', 'image_url', 'match_type', 'match_type_id',
-                  'tier', 'tier_id', 'max_participants', 'competition_type',
-                  'created_at', 'updated_at', 'delete_image')
+                  'tier', 'tier_id', 'max_participants', 'competition_type', 'team_games',
+                  'team_total_games', 'created_at', 'updated_at', 'delete_image')
         read_only_fields = ('id', 'created_at', 'updated_at', 'status', 'code')
         extra_kwargs = {
             'description': {'required': False, 'allow_blank': True},
@@ -80,6 +104,7 @@ class CompetitionSerializer(serializers.ModelSerializer):
             'delete_image': {'write_only': True},
             'tier': {'required': False},
             'tier_id': {'required': False},
+            'team_total_games': {'required': False},
         }
 
 
