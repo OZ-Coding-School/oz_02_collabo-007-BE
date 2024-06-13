@@ -4,6 +4,8 @@ from participant.models import Participant
 from users.serializers import UserInfoSerializer
 from set.serializers import SetSerializer
 from set.models import Set
+from users.models import CustomUser
+from django.db.models import Q
 
 class MatchSerializer(serializers.ModelSerializer):
     sets = serializers.SerializerMethodField()
@@ -100,3 +102,31 @@ class MyCompetitionMatchSerializer(serializers.ModelSerializer):
         elif b_team_users and user.username in b_team_users:
             return a_team_users
         return None
+
+class MatchRecordSerializer(serializers.ModelSerializer):
+    user_record = serializers.SerializerMethodField()
+    user_matches = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'user_record', 'user_matches']
+    
+    def get_user_matches(self, obj):
+        user_id = obj.id
+        user_participants = Participant.objects.filter(user_id=user_id)
+        user_matches_data = {}
+        for participant in user_participants:
+            competition_id = participant.participant_info.competition.id
+            if competition_id not in user_matches_data:
+                user_matches_data[competition_id] = []
+            user_matches = Match.objects.filter(Q(a_team=participant.participant_info) | Q(b_team=participant.participant_info))
+            user_matches_data[competition_id].extend(MatchSerializer(user_matches, many=True).data)
+        return user_matches_data
+    
+    def get_user_record(self, obj):
+        user_id = obj.id
+        user_matches = self.get_user_matches(obj)
+        total_matches = sum(len(matches) for matches in user_matches.values())
+        total_wins = sum(1 for matches in user_matches.values() for match in matches if match.get('winner_user') and match['winner_user'][0]['id'] == user_id)
+        total_losses = total_matches - total_wins
+        return f"{total_matches}전 {total_wins}승 {total_losses}패"
