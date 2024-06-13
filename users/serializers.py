@@ -8,6 +8,8 @@ from club.serializers import ClubDetailSerializer
 from club_applicant.models import ClubApplicant
 from team.serializers import TeamDetailSerializer
 from club_applicant.serializers import ClubApplicantSerializer
+from point.models import Point
+from matchtype.serializers import MatchTypeSerializer
 
 
 User = get_user_model()
@@ -298,6 +300,67 @@ class UserInfoSerializer(serializers.ModelSerializer):
         return None
 
 
+
+# 내 프로필 랭킹조회 serializer
+class MyProfileRankingSerializer(serializers.ModelSerializer):
+    total_points = serializers.IntegerField(read_only=True)
+    rank = serializers.IntegerField(read_only=True)
+    match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
+    user= serializers.SerializerMethodField()
+    tier = serializers.SerializerMethodField()
+    main_ranking = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Point
+        fields = ('match_type_details', 'rank', 'total_points', 'user', 'tier', 'main_ranking')
+
+    # 각 필드 이름 가져오는 인스턴스 메서드
+    def get_user(self, obj):
+        if obj.user:
+            return {
+                'id': obj.user.id,
+                'username': obj.user.username,
+            }
+        return None
+
+
+    def get_tier(self, obj):
+        if obj.tier:
+            return {
+                'id': obj.tier.id,
+                'name': obj.tier.name,
+            }
+        return None
+    
+    def get_main_ranking(self, obj):
+        return obj.user.main_ranking if obj.user else False
+
+    
+    
+# 내 프로필 팀 랭킹 조회 serializer
+class MyProfileTeamRankingSerializer(serializers.ModelSerializer):
+    total_points = serializers.IntegerField(read_only=True)
+    rank = serializers.IntegerField(read_only=True)
+    match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
+    team= serializers.SerializerMethodField()
+    main_ranking = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Point
+        fields = ('match_type_details', 'rank', 'total_points', 'team', 'main_ranking')
+
+    # 각 필드 이름 가져오는 인스턴스 메서드
+    def get_team(self, obj):
+        if obj.team:
+            return {
+                'id': obj.team.id,
+                'name': obj.team.name,
+            }
+        return None
+
+
+    def get_main_ranking(self, obj):
+        return obj.user.main_ranking if obj.user else False
 
 
 

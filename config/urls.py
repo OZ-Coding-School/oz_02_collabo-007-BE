@@ -30,6 +30,7 @@ urlpatterns = [
     path('api/v1/', include('point.urls')),
     path('api/v1/', include('match.urls')),
     path('api/v1/', include('custom_admin.urls')),
+    path('api/v1/', include('tier.urls')),
 ]
 
 if settings.DEBUG:
