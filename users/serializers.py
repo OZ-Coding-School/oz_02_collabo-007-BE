@@ -340,9 +340,15 @@ class MyProfileRankingSerializer(serializers.ModelSerializer):
     
     
     def get_main_ranking(self, obj):
-        return obj.user.main_ranking if obj.user else False
+        if isinstance(obj, dict) and 'user' in obj:
+            user = obj['user']
+            if isinstance(user, CustomUser):
+                return user.main_ranking
+            else:
+                return False
+        else:
+            return False
 
-    
     
 # 내 프로필 팀 랭킹 조회 serializer
 class MyProfileTeamRankingSerializer(serializers.ModelSerializer):
@@ -368,7 +374,12 @@ class MyProfileTeamRankingSerializer(serializers.ModelSerializer):
 
 
     def get_main_ranking(self, obj):
-        return obj.user.main_ranking if obj.user else False
+        if isinstance(obj, dict) and 'user' in obj and obj['user']:
+            return obj['user'].main_ranking
+        elif hasattr(obj, 'user') and obj.user:
+            return obj.user.main_ranking
+        else:
+            return False
 
 
 

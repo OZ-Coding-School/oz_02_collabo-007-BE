@@ -388,6 +388,8 @@ class MyprofileRankingsView(APIView):
         
         # 사용자가 속한 모든 매치 타입을 가져옴
         user_match_types = [tier.match_type for tier in user_tiers]
+        
+    
 
         
         # 매치 타입별 쿼리셋 생성
@@ -406,7 +408,6 @@ class MyprofileRankingsView(APIView):
         team_queryset = Point.objects.filter(
             expired_date__gte=current_time,
             match_type__type='team',
-            match_type__in=user_match_types
         ).values('team').annotate(total_points=Sum('points')).order_by('-total_points')
 
         if not single_queryset.exists() and not double_queryset.exists() and not team_queryset.exists():
@@ -448,36 +449,33 @@ class MyprofileRankingsView(APIView):
         # 단식 랭킹 정보
         single_ranking = []
         for obj in single_ranked_queryset:
-            user_id = obj['user']
-            user = User.objects.get(id=user_id)
+            user = obj['user']
+            user_id = user.id
             if user == request.user:
-                obj['user'] = user.id
                 single_ranking.append(obj)
 
         # 복식 랭킹 정보
         double_ranking = []
         for obj in single_ranked_queryset:
-            user_id = obj['user']
-            user = User.objects.get(id=user_id)
+            user = obj['user']
+            user_id = user.id
             if user == request.user:
-                obj['user'] = user.id
                 double_ranking.append(obj)
 
         # 팀 랭킹 정보
-        my_team_ranking = next((obj for obj in team_ranked_queryset if obj.team == request.user.team), None)
+        team_ranking = next((obj for obj in team_ranked_queryset if obj['team'] == request.user.team), None)
         
-
-        # 순위를 유지한 상태에서 type이 single인 항목을 맨 위로 이동
-        single_ranking = sorted(single_ranking, key=lambda x: x.match_type.type != 'single')
+        
+        
 
         single_ranking_serializer = MyProfileRankingSerializer(single_ranking, many=True, context={"request": request})
         double_ranking_serializer = MyProfileRankingSerializer(double_ranking, many=True, context={"request": request})
-        my_team_ranking_serializer = MyProfileTeamRankingSerializer(my_team_ranking, context={"request": request})
+        my_team_ranking_serializer = MyProfileTeamRankingSerializer(team_ranking, context={"request": request})
 
         response_data = {
             'single_ranking': single_ranking_serializer.data if single_ranking else '단식 랭킹 정보가 없습니다.',
             'double_ranking': double_ranking_serializer.data if double_ranking else '복식 랭킹 정보가 없습니다.',
-            'team_ranking': my_team_ranking_serializer.data if my_team_ranking else '팀 랭킹 정보가 없습니다.'
+            'team_ranking': my_team_ranking_serializer.data if team_ranking else '팀 랭킹 정보가 없습니다.'
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
