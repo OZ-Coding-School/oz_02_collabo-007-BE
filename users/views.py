@@ -500,19 +500,30 @@ class SetMainRankingView(APIView):
             post_gender = post_data.get('gender')
             post_type = post_data.get('type')
 
+            # 모든 랭킹을 False로 초기화
+            for ranking in user_rankings:
+                ranking.main_ranking = False
+                
+            
+            # 조건을 만족하는 랭킹의 mainRanking을 True로 설정
             for ranking in user_rankings:
                 if ranking.match_type.type == post_type and ranking.match_type.gender == post_gender:
-                    ranking.mainRanking = True
-                else:
-                    ranking.mainRanking = False
+                    ranking.main_ranking = True
 
             user_rankings_serializer = MyProfileRankingSerializer(user_rankings, many=True, context={"request": request})
-            
-            
+
+            if my_team_ranking:
+                if my_team_ranking.match_type.type == post_type and my_team_ranking.match_type.gender == post_gender:
+                    my_team_ranking.main_ranking = True
+                else:
+                    my_team_ranking.main_ranking = False
+
+            team_ranking_serializer = MyProfileTeamRankingSerializer(my_team_ranking, context={"request": request})
 
             return Response({
-                'user_rankings': user_rankings_serializer.data
+                'user_rankings': user_rankings_serializer.data,
+                'team_ranking': team_ranking_serializer.data
             }, status=status.HTTP_200_OK)
-
+        
         except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
