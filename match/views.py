@@ -31,7 +31,7 @@ class MatchRoundAPIView(APIView):
 class MatchRecordAPIView(APIView):
     @swagger_auto_schema(
         manual_parameters=[
-            openapi.Parameter('usersid', openapi.IN_QUERY, description="User ID", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('user_id', openapi.IN_QUERY, description="User ID", type=openapi.TYPE_INTEGER),
         ],
         operation_summary='내 전적 조회',
         operation_description='쿼리파라미터를 사용해서 유저의 매치 전적을 조회합니다.(예시 http://127.0.0.1:8000/api/v1/competitions/record/?user_id=1)'
