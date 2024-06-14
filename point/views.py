@@ -26,7 +26,7 @@ class UserRankingView(APIView):
             openapi.Parameter('gender', openapi.IN_QUERY, description="default= male", type=openapi.TYPE_STRING),
             openapi.Parameter('type', openapi.IN_QUERY, description="default= single", type=openapi.TYPE_STRING),
             openapi.Parameter('tier', openapi.IN_QUERY, description="default= 1", type=openapi.TYPE_INTEGER),
-            openapi.Parameter('name', openapi.IN_QUERY, description="deafault= Null", type=openapi.TYPE_STRING)
+            openapi.Parameter('name', openapi.IN_QUERY, description="default= Null", type=openapi.TYPE_STRING)
         ],
         responses={
             200: UserRankingSerializer(many=True),
