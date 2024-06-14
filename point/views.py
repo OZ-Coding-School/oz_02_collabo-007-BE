@@ -25,8 +25,8 @@ class UserRankingView(APIView):
             openapi.Parameter('year', openapi.IN_QUERY, description="default= 실시간 랭킹", type=openapi.TYPE_INTEGER),
             openapi.Parameter('gender', openapi.IN_QUERY, description="default= male", type=openapi.TYPE_STRING),
             openapi.Parameter('type', openapi.IN_QUERY, description="default= single", type=openapi.TYPE_STRING),
-            openapi.Parameter('tier', openapi.IN_QUERY, description="default= 1", type=openapi.TYPE_INTEGER),
-            openapi.Parameter('name', openapi.IN_QUERY, description="default= Null", type=openapi.TYPE_STRING)
+            openapi.Parameter('tier', openapi.IN_QUERY, description="default= All", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('name', openapi.IN_QUERY, description="default= All", type=openapi.TYPE_STRING)
         ],
         responses={
             200: UserRankingSerializer(many=True),
@@ -101,7 +101,7 @@ class TeamRankingView(APIView):
         operation_description='쿼리파라미터를 사용하여 연도별 / 팀 이름별 필터 조회 가능 (예시 /api/v1/ranking/team?name=라온테니스)',
         manual_parameters=[
             openapi.Parameter('year', openapi.IN_QUERY, description="ex) default = 실시간", type=openapi.TYPE_INTEGER),
-            openapi.Parameter('name', openapi.IN_QUERY, description="ex) default = Null", type=openapi.TYPE_STRING)
+            openapi.Parameter('name', openapi.IN_QUERY, description="ex) default = All", type=openapi.TYPE_STRING)
         ],
         responses={
             200: TeamRankingSerializer(many=True),
