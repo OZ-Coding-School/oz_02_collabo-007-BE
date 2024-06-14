@@ -20,6 +20,7 @@ from .serializers import (CreateUserSerializer,
                           ChangePasswordSerializer,
                           MyProfileRankingSerializer,
                           MyProfileTeamRankingSerializer,
+                          MainRankingSerializer
                           )
 
 from django.utils import timezone
@@ -290,6 +291,10 @@ class MyProfileView(APIView):
 
 
 
+
+
+
+
 # 로그인한 유저 랭킹을 제공하는 API
 class MyprofileRankingsView(APIView):
     
@@ -297,89 +302,56 @@ class MyprofileRankingsView(APIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_summary='로그인한 유저 랭킹을 조회하는 API',
-        operation_description='로그인한 사용자의 단식/복식 랭킹과 팀 랭킹 정보를 조회합니다.',
-        responses={
-            200: openapi.Response(
-                description="성공",
-                schema=openapi.Schema(
+    operation_summary='로그인한 유저 랭킹을 조회하는 API',
+    operation_description='로그인한 사용자의 단식/복식/팀 랭킹을 조회합니다.',
+    responses={
+        200: openapi.Response('', openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'mainRanking': openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'user_rankings': openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                properties={
-                                    'match_type_details': openapi.Schema(
-                                        type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            'gender': openapi.Schema(type=openapi.TYPE_STRING),
-                                            'type': openapi.Schema(type=openapi.TYPE_STRING),
-                                        }
-                                    ),
-                                    'rank': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                    'total_points': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                    'user': openapi.Schema(
-                                        type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            'id': openapi.Schema(type=openapi.TYPE_STRING),
-                                            'username': openapi.Schema(type=openapi.TYPE_STRING),
-                                        }
-                                    ),
-                                    'tier': openapi.Schema(
-                                        type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            'id': openapi.Schema(type=openapi.TYPE_STRING),
-                                            'name': openapi.Schema(type=openapi.TYPE_STRING),
-                                            'match_type_details': openapi.Schema(
-                                                type=openapi.TYPE_OBJECT,
-                                                properties={
-                                                    'gender': openapi.Schema(type=openapi.TYPE_STRING),
-                                                    'type': openapi.Schema(type=openapi.TYPE_STRING),
-                                                }
-                                            ),
-                                        }
-                                    ),
-                                    'club': openapi.Schema(
-                                        type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            'id': openapi.Schema(type=openapi.TYPE_STRING),
-                                            'name': openapi.Schema(type=openapi.TYPE_STRING),
-                                        }
-                                    ),
-                                    'image_url': openapi.Schema(type=openapi.TYPE_STRING),
-                                }
-                            )
-                        ),
-                        'team_ranking': openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            properties={
-                                'match_type_details': openapi.Schema(
-                                    type=openapi.TYPE_OBJECT,
-                                    properties={
-                                        'gender': openapi.Schema(type=openapi.TYPE_STRING),
-                                        'type': openapi.Schema(type=openapi.TYPE_STRING),
-                                    }
-                                ),
-                                'rank': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                'total_points': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                'team': openapi.Schema(
-                                    type=openapi.TYPE_OBJECT,
-                                    properties={
-                                        'id': openapi.Schema(type=openapi.TYPE_STRING),
-                                        'name': openapi.Schema(type=openapi.TYPE_STRING),
-                                    }
-                                )
-                            }
-                        )
+                        'ranking': openapi.Schema(type=openapi.TYPE_STRING)
                     }
-                )
-            ),
-            401: 'Authentication Error',
-            403: 'Permission Denied',
-            404: 'Not Found'
-        }
-    )
+                ),
+                'singleRanking': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'userId': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'userName': openapi.Schema(type=openapi.TYPE_STRING),
+                            'ranking': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'score': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        }
+                    )
+                ),
+                'doubleRanking': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'userId': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'userName': openapi.Schema(type=openapi.TYPE_STRING),
+                            'ranking': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'score': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        }
+                    )
+                ),
+                'teamRanking': openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'teamId': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'teamName': openapi.Schema(type=openapi.TYPE_STRING),
+                        'ranking': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'score': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    }
+                ),
+            }
+        ))
+    }
+)
+
     def get(self, request, *args, **kwargs):
         current_time = timezone.now()
         
@@ -456,7 +428,7 @@ class MyprofileRankingsView(APIView):
 
         # 복식 랭킹 정보
         double_ranking = []
-        for obj in single_ranked_queryset:
+        for obj in double_ranked_queryset:
             user = obj['user']
             user_id = user.id
             if user == request.user:
@@ -467,12 +439,13 @@ class MyprofileRankingsView(APIView):
         
         
         
-
+        
         single_ranking_serializer = MyProfileRankingSerializer(single_ranking, many=True, context={"request": request})
         double_ranking_serializer = MyProfileRankingSerializer(double_ranking, many=True, context={"request": request})
         my_team_ranking_serializer = MyProfileTeamRankingSerializer(team_ranking, context={"request": request})
 
         response_data = {
+            'main_ranking': MainRankingSerializer(request.user).data['main_ranking'],
             'single_ranking': single_ranking_serializer.data if single_ranking else '단식 랭킹 정보가 없습니다.',
             'double_ranking': double_ranking_serializer.data if double_ranking else '복식 랭킹 정보가 없습니다.',
             'team_ranking': my_team_ranking_serializer.data if team_ranking else '팀 랭킹 정보가 없습니다.'

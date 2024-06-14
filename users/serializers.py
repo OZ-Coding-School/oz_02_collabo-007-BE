@@ -308,11 +308,10 @@ class MyProfileRankingSerializer(serializers.ModelSerializer):
     match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
     user= serializers.SerializerMethodField()
     tier = serializers.SerializerMethodField()
-    main_ranking = serializers.SerializerMethodField()
 
     class Meta:
         model = Point
-        fields = ('match_type_details', 'rank', 'total_points', 'user', 'tier', 'main_ranking')
+        fields = ('match_type_details', 'rank', 'total_points', 'user', 'tier')
 
      # 각 필드 이름 가져오는 인스턴스 메서드
     def get_user(self, obj):
@@ -338,16 +337,7 @@ class MyProfileRankingSerializer(serializers.ModelSerializer):
             }
         return None
     
-    
-    def get_main_ranking(self, obj):
-        if isinstance(obj, dict) and 'user' in obj:
-            user = obj['user']
-            if isinstance(user, CustomUser):
-                return user.main_ranking
-            else:
-                return False
-        else:
-            return False
+
 
     
 # 내 프로필 팀 랭킹 조회 serializer
@@ -356,11 +346,10 @@ class MyProfileTeamRankingSerializer(serializers.ModelSerializer):
     rank = serializers.IntegerField(read_only=True)
     match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
     team= serializers.SerializerMethodField()
-    main_ranking = serializers.SerializerMethodField()
 
     class Meta:
         model = Point
-        fields = ('match_type_details', 'rank', 'total_points', 'team', 'main_ranking')
+        fields = ('match_type_details', 'rank', 'total_points', 'team')
 
     # 각 필드 이름 가져오는 인스턴스 메서드
     def get_team(self, obj):
@@ -372,14 +361,19 @@ class MyProfileTeamRankingSerializer(serializers.ModelSerializer):
             }
         return None
 
+        
+        
+# 대표 랭킹 serializer
+class MainRankingSerializer(serializers.ModelSerializer):
+    main_ranking = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = ('main_ranking',)
 
     def get_main_ranking(self, obj):
-        if isinstance(obj, dict) and 'user' in obj and obj['user']:
-            return obj['user'].main_ranking
-        elif hasattr(obj, 'user') and obj.user:
-            return obj.user.main_ranking
-        else:
-            return False
+        return obj.get_main_ranking_display()
+
 
 
 
