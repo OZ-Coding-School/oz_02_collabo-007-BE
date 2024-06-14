@@ -5,6 +5,9 @@ from custom_admin.team.serializers import TeamDetailSerializer, MemberSerializer
 from team.models import Team
 from custom_admin.service.image_service import ImageService
 from drf_yasg.utils import swagger_auto_schema
+from django.db.models import Prefetch
+
+from tier.models import Tier
 
 
 class TeamViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
@@ -71,5 +74,9 @@ class TeamViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.G
     @action(detail=True, methods=['get'], url_path='members')
     def members(self, request, *args, **kwargs):
         team = self.get_object()
-        members = team.users.select_related('image_url').all()
+        members = team.users.select_related('image_url').prefetch_related(
+            Prefetch(
+                'tiers', queryset=Tier.objects.select_related('match_type')
+            )
+        ).all()
         return Response(MemberSerializer(members, many=True).data, status=status.HTTP_200_OK)

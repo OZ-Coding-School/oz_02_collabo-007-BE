@@ -63,9 +63,10 @@ class MemberSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'phone', 'username', 'team',
+        fields = ('id', 'phone', 'username', 'team', 'gender',
                   'team_id', 'tiers', 'tiers_id')
-        read_only_fields = ('id', 'phone', 'username', 'team', 'tiers')
+        read_only_fields = ('id', 'phone', 'username',
+                            'team', 'tiers', 'gender')
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)

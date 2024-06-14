@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from applicant_info.models import ApplicantInfo
 from competition.models import Competition
-from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchResultSerializer, MatchSerializer, ParticipantInfoSerializer
+from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchResultSerializer, MatchSerializer, ParticipantInfoSerializer, TeamApplicantInfoSerializer, TeamCompetitionApplySerializer, TeamCompetitionListSerializer
 from custom_admin.pagination import StandardResultsSetPagination
 from custom_admin.service.competition_service import CompetitionService
 from custom_admin.service.image_service import ImageService
@@ -17,7 +17,10 @@ from payments.models import Payment
 
 class CompetitionViewSet(viewsets.ModelViewSet):
     queryset = Competition.objects.all().select_related(
-        'image_url', 'tier', 'match_type').order_by('-created_at')
+        'image_url', 'tier', 'match_type'
+    ).prefetch_related(
+        'team_match_list__tier', 'team_match_list__match_type'
+    ).order_by('-created_at')
     pagination_class = StandardResultsSetPagination
     image_service = ImageService()
     competition_service = CompetitionService()
@@ -92,21 +95,12 @@ class CompetitionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], url_path='applicants', url_name='competition-applicants')
     def applicants(self, request, pk=None):
         competition = self.get_object()
-        payments = Payment.objects.filter(applicant_info=OuterRef('pk'))
-        refunds = Payment.objects.filter(
-            applicant_info=OuterRef('pk'), refund__isnull=False)
+        applicants = self.competition_service.get_applicants(competition)
 
-        applicant_infos = ApplicantInfo.objects.filter(
-            competition=competition
-        ).prefetch_related(
-            Prefetch('applicants__user'),
-            Prefetch('payment__refund')
-        ).annotate(
-            has_payment=Exists(payments),
-            has_refund=Exists(refunds)
-        )
-
-        serializer = ApplicantInfoSerializer(applicant_infos, many=True)
+        if competition.match_type.is_team_game():
+            serializer = TeamApplicantInfoSerializer(applicants, many=True)
+        else:
+            serializer = ApplicantInfoSerializer(applicants, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
@@ -355,3 +349,59 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
         return Response('대회가 종료되었습니다.', status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='팀 대회 조회',
+        operation_description='팀 대회를 조회합니다.',
+        responses={
+            200: TeamCompetitionListSerializer,
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=False, methods=['get'], url_path='team', url_name='team-competition')
+    def team_competition(self, request):
+        competition_status = request.query_params.get('status')
+        team_competitions = Competition.objects.filter(
+            match_type__type='team'
+        )
+
+        if competition_status:
+            team_competitions = team_competitions.filter(
+                status=competition_status)
+
+        team_competitions = team_competitions.select_related(
+            'image_url', 'tier', 'match_type'
+        ).prefetch_related(
+            'team_match_list__tier', 'team_match_list__match_type'
+        ).order_by('-created_at')
+
+        serializer = TeamCompetitionListSerializer(
+            team_competitions, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='팀 대회 신청',
+        operation_description='팀 대회에 신청합니다.',
+        responses={
+            200: 'Team application successful',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['post'], url_path='team/apply', url_name='team-apply')
+    def team_apply(self, request, pk=None):
+        try:
+            serializer = TeamCompetitionApplySerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            competition = self.get_object()
+            self.competition_service.team_apply(
+                competition, serializer.validated_data)
+        except Exception as e:
+            print(e.with_traceback())
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response('팀 신청이 완료되었습니다.', status=status.HTTP_200_OK)

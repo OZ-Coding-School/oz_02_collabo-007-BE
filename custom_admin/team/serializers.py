@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from custom_admin.common.serializers import AdminTierSerializer
 from team.models import Team
 from custom_admin.club.serializers import ClubListSerializer
 from django.contrib.auth import get_user_model
@@ -25,7 +26,29 @@ User = get_user_model()
 
 
 class MemberSerializer(serializers.ModelSerializer):
+    tiers = AdminTierSerializer(many=True, read_only=True)
+
     class Meta:
         model = User
-        fields = ('id', 'username', 'phone', 'gender')
-        read_only_fields = ('id', 'username', 'phone', 'gender')
+        fields = ('id', 'username', 'phone', 'gender', 'tiers')
+        read_only_fields = ('id', 'username', 'phone', 'gender', 'tiers')
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        tiers_representation = {}
+
+        for tier in representation['tiers']:
+            try:
+                match_type = tier.get('match_type', {}).get('type')
+                if match_type:
+                    tiers_representation[match_type] = {
+                        'id': tier['id'],
+                        'name': tier['name']
+                    }
+            except KeyError:
+                continue
+            except TypeError:
+                continue
+
+        representation['tiers'] = tiers_representation
+        return representation

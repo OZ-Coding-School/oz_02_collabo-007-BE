@@ -64,6 +64,18 @@ class Competition(TimeStampedModel, SoftDeleteModel):
     def is_tournament(self):
         return self.competition_type == 'tournament'
 
+    def is_before(self):
+        return self.status == 'before'
+
+    def is_during(self):
+        return self.status == 'during'
+
+    def is_ended(self):
+        return self.status == 'ended'
+
+    def is_team_match(self):
+        return self.match_type.is_team_game()
+
     def start_competition(self):
         if self.status == 'before':
             self.status = 'during'

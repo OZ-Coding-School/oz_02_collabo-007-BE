@@ -1,7 +1,9 @@
 import random
 from django.shortcuts import get_object_or_404
-from applicant_info.models import ApplicantInfo
+from applicant.models import Applicant
+from applicant_info.models import ApplicantInfo, TeamApplicantInfo
 from django.db import transaction
+from django.db.models import Exists, OuterRef, Prefetch
 from competition.models import Competition, CompetitionResult, CompetitionTeamMatch
 from matchtype.models import MatchType
 from participant.models import Participant
@@ -9,8 +11,11 @@ from participant_info.models import ParticipantInfo
 from payments.models import Payment, Refund
 from match.models import Match
 from point.models import Point
+from team.models import Team
 from tier.models import Tier
 from users.models import CustomUser
+from datetime import timedelta
+from django.utils.timezone import now
 
 
 class CompetitionService:
@@ -216,6 +221,61 @@ class CompetitionService:
 
         return competition
 
+    def team_apply(self, competition: Competition, applicant_info):
+        """
+        팀이 대회에 신청하는 메서드.
+        """
+        with transaction.atomic():
+            if competition.is_before() is False:
+                raise ValueError('대회가 시작되었거나 종료되어 신청할 수 없습니다.')
+            team_applicant_info = self._create_team_application(
+                competition, applicant_info['team_id'])
+            for application in applicant_info['applications']:
+                self._create_application_of_team(
+                    team_applicant_info, application)
+
+        return None
+
+    def get_applicants(self, competition: Competition):
+        """
+        대회 신청자 정보를 반환하는 메서드.
+        """
+        if competition.is_team_match():
+            payment = Payment.objects.filter(
+                team_applicant_info=OuterRef('pk')
+            )
+            refund = Payment.objects.filter(
+                team_applicant_info=OuterRef('pk'),
+                refund__isnull=False
+            )
+
+            return TeamApplicantInfo.objects.filter(
+                competition=competition
+            ).prefetch_related(
+                'team'
+            ).annotate(
+                has_payment=Exists(payment),
+                has_refund=Exists(refund)
+            )
+        else:
+            payment = Payment.objects.filter(
+                applicant_info=OuterRef('pk')
+            )
+            refund = Payment.objects.filter(
+                applicant_info=OuterRef('pk'),
+                refund__isnull=False
+            )
+
+            return ApplicantInfo.objects.filter(
+                competition=competition
+            ).prefetch_related(
+                Prefetch('applicants__user'),
+                Prefetch('payment__refund')
+            ).annotate(
+                has_payment=Exists(payment),
+                has_refund=Exists(refund)
+            )
+
     def _confirm_payment(self, applicant_info: ApplicantInfo):
         """
         참가자가 입금 완료했을 때 호출되는 메서드.
@@ -418,3 +478,87 @@ class CompetitionService:
             match_type=match_type,
             game_number=game_number
         )
+
+    def _create_team_application(self, competition: Competition, team_id):
+        """
+        팀이 대회에 신청하는 메서드.
+
+        이 메서드는 다음 작업을 수행합니다:
+        1. 대회에 팀 신청 정보를 생성합니다.
+        2. 대회 참가 인원이 초과된 경우, 대기번호를 생성합니다.
+        3. 입금 기한이 없는 경우, 3일 후로 설정합니다.
+
+        Args:
+            competition: Competition 객체
+            team_id: Team 객체의 id
+
+        Returns:
+            team_applicant_info: TeamApplicantInfo 객체
+        """
+        team = self._get_object_or_404(Team, pk=team_id)
+        current_applicants_count = self._get_applicants_count(competition)
+        waiting_number = None
+        if current_applicants_count > competition.max_participants:
+            waiting_number = current_applicants_count - competition.max_participants + 1
+
+        team_applicant_info = TeamApplicantInfo.objects.create(
+            competition=competition,
+            team=team,
+            waiting_number=waiting_number,
+            expired_date=now() + timedelta(days=competition.deposit_date if competition.deposit_date else 3)
+        )
+        print("team_applicant_info expired_date: ",
+              team_applicant_info.expired_date)
+        return team_applicant_info
+
+    def _create_application_of_team(self, team_applicant_info: TeamApplicantInfo, application):
+        """
+        팀 신청 정보 하위 정보를 생성하는 메서드.
+        """
+        applicant_info = ApplicantInfo.objects.create(
+            competition=team_applicant_info.competition,
+            team_applicant_info=team_applicant_info,
+            team_applicant_game_number=application['game_number']
+        )
+
+        game_info = self._get_object_or_404(
+            CompetitionTeamMatch,
+            competition=team_applicant_info.competition,
+            game_number=application['game_number']
+        )
+
+        for user in application['users']:
+            user = self._get_object_or_404(CustomUser, pk=user['user_id'])
+            if self._check_valid_user_for_match(user, game_info.match_type, game_info.tier) is False:
+                raise ValueError('사용자의 성별 또는 티어가 일치하지 않습니다.')
+            Applicant.objects.create(
+                user=user,
+                applicant_info=applicant_info
+            )
+
+        return applicant_info
+
+    def _check_valid_user_for_match(self, user: CustomUser, match_type: MatchType, tier: Tier):
+        """
+        경기에 참가할 수 있는 유저인지 확인하는 메서드.
+
+        이 메서드는 다음 작업을 수행합니다:
+        1. MatchType이 혼성, 팀인 경우에는 모든 유저가 참가할 수 있습니다.
+        2. MatchType이 단식, 복식인 경우에는 성별이 일치하고, 부가 일치하는 경우에만 참가할 수 있습니다.
+        """
+        if match_type.is_mix():
+            return True
+
+        if match_type.gender != user.gender:
+            return False
+
+        if tier != user.get_tier(tier.match_type.type):
+            return False
+
+        return True
+
+    def _get_applicants_count(self, competition: Competition):
+        if competition.is_team_match():
+            return TeamApplicantInfo.objects.filter(competition=competition).count()
+        else:
+            return ApplicantInfo.objects.filter(competition=competition).count()
