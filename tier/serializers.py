@@ -4,8 +4,8 @@ from matchtype.serializers import MatchTypeSerializer
 
 
 class TierSerializer(serializers.ModelSerializer):
-    match_type = MatchTypeSerializer(read_only=True)
+    match_type_details = MatchTypeSerializer(source='match_type',   read_only=True)
     
     class Meta:
         model = Tier
-        fields = ['id', 'name', 'match_type']
+        fields = ['id', 'name', 'match_type_details']
