@@ -5,7 +5,7 @@ from applicant_info.models import ApplicantInfo, TeamApplicantInfo
 from competition.models import Competition, CompetitionTeamMatch
 from matchtype.models import MatchType
 from participant.models import Participant
-from participant_info.models import ParticipantInfo
+from participant_info.models import ParticipantInfo, TeamParticipantInfo
 from point.models import Point
 from team.models import Team
 from tier.models import Tier
@@ -203,6 +203,17 @@ class ParticipantInfoSerializer(serializers.ModelSerializer):
         fields = ('id', 'participants', 'competition',
                   'created_at', 'updated_at')
         read_only_fields = ('id', 'competition', 'participants',
+                            'created_at', 'updated_at')
+
+
+class TeamParticipantInfoSerializer(serializers.ModelSerializer):
+    team = CompetitionTeamSerializer(read_only=True)
+
+    class Meta:
+        model = TeamParticipantInfo
+        fields = ('id', 'team', 'competition',
+                  'created_at', 'updated_at')
+        read_only_fields = ('id', 'competition', 'team',
                             'created_at', 'updated_at')
 
 

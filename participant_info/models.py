@@ -20,8 +20,9 @@ class ParticipantInfo(BaseParticipantInfo):
         Competition, on_delete=models.DO_NOTHING, related_name='participants')
     applicant_info = models.OneToOneField(
         ApplicantInfo, related_name='participant_info', on_delete=models.DO_NOTHING, null=True, blank=True)
-    team_participant_info = models.OneToOneField(
-        'TeamParticipantInfo',  on_delete=models.DO_NOTHING, null=True, blank=True)
+    team_participant_info = models.ForeignKey(
+        'TeamParticipantInfo',  on_delete=models.DO_NOTHING,
+        related_name='team_participant_list', null=True, blank=True)
     team_participant_game_number = models.IntegerField(
         blank=True, null=True, help_text="팀 게임 내 경기 번호")
 

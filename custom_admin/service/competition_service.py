@@ -1,4 +1,5 @@
 import random
+from typing import Union
 from django.shortcuts import get_object_or_404
 from applicant.models import Applicant
 from applicant_info.models import ApplicantInfo, TeamApplicantInfo
@@ -7,7 +8,7 @@ from django.db.models import Exists, OuterRef, Prefetch
 from competition.models import Competition, CompetitionResult, CompetitionTeamMatch
 from matchtype.models import MatchType
 from participant.models import Participant
-from participant_info.models import ParticipantInfo
+from participant_info.models import ParticipantInfo, TeamParticipantInfo
 from payments.models import Payment, Refund
 from match.models import Match
 from point.models import Point
@@ -29,6 +30,17 @@ class CompetitionService:
                 self._create_participant(applicant_info)
         return None
 
+    def process_team_payment(self, team_applicant_info: TeamApplicantInfo):
+        """
+        관리자가 팀 대회 신청의 결제를 확인했을 때 호출되는 메서드.
+        """
+        with transaction.atomic():
+            team_applicant_info = self._confirm_team_payment(
+                team_applicant_info)
+            if team_applicant_info.is_confirmed():
+                self._create_team_participant(team_applicant_info)
+        return None
+
     def cancel_application(self, applicant_info: ApplicantInfo):
         """
         관리자가 대회 신청자의 신청을 취소했을 때 호출되는 메서드.
@@ -37,12 +49,31 @@ class CompetitionService:
             self._cancel_application(applicant_info)
         return None
 
+    def cancel_team_application(self, team_applicant_info: TeamApplicantInfo):
+        """
+        관리자가 팀 대회 신청을 취소했을 때 호출되는 메서드.
+        """
+        with transaction.atomic():
+            self._cancel_team_application(team_applicant_info)
+        return None
+
     def process_refund(self, applicant_info: ApplicantInfo):
         """
         관리자가 대회 신청자의 환불을 처리했을 때 호출되는 메서드.
         """
         with transaction.atomic():
             payment = Payment.objects.get(applicant_info=applicant_info)
+            if payment:
+                Refund.objects.create(payment=payment)
+        return None
+
+    def process_team_refund(self, team_applicant_info: TeamApplicantInfo):
+        """
+        관리자가 팀 대회 신청자의 환불을 처리했을 때 호출되는 메서드.
+        """
+        with transaction.atomic():
+            payment = Payment.objects.get(
+                team_applicant_info=team_applicant_info)
             if payment:
                 Refund.objects.create(payment=payment)
         return None
@@ -276,9 +307,9 @@ class CompetitionService:
                 has_refund=Exists(refund)
             )
 
-    def _confirm_payment(self, applicant_info: ApplicantInfo):
+    def _confirm_payment_base(self, applicant_info: Union['ApplicantInfo', 'TeamApplicantInfo'], is_team: bool = False):
         """
-        참가자가 입금 완료했을 때 호출되는 메서드.
+        팀 또는 개인 신청자의 결제를 확인하는 메서드.
 
         이 메서드는 다음 작업을 수행합니다:
         1. 결제 정보를 생성합니다.
@@ -286,12 +317,16 @@ class CompetitionService:
         2-2. 대기번호가 없는 경우 상태를 '참가 완료'로 변경합니다.
 
         Args:
-            applicant_info: ApplicantInfo 객체
+            applicant_info: Union[ApplicantInfo, TeamApplicantInfo] 객체
+            is_team: 팀 신청인지 여부
 
         Returns:
-            applicant_info: 업데이트된 ApplicantInfo 객체
+            applicant_info: Updated ApplicantInfo 혹은 TeamApplicantInfo 객체
         """
-        Payment.objects.create(applicant_info=applicant_info)
+        if is_team:
+            Payment.objects.create(team_applicant_info=applicant_info)
+        else:
+            Payment.objects.create(applicant_info=applicant_info)
 
         if applicant_info.waiting_number is None:
             applicant_info.change_status_to_confirmed()
@@ -299,6 +334,30 @@ class CompetitionService:
             applicant_info.change_status_to_pending()
 
         return applicant_info
+
+    def _confirm_payment(self, applicant_info: ApplicantInfo) -> ApplicantInfo:
+        """
+        참가자가 입금 완료했을 때 호출되는 메서드.
+
+        Args:
+            applicant_info: ApplicantInfo 객체
+
+        Returns:
+            applicant_info: 업데이트된 ApplicantInfo 객체
+        """
+        return self._confirm_payment_base(applicant_info, is_team=False)
+
+    def _confirm_team_payment(self, team_applicant_info: TeamApplicantInfo) -> TeamApplicantInfo:
+        """
+        팀 참가자가 입금 완료했을 때 호출되는 메서드.
+
+        Args:
+            team_applicant_info: TeamApplicantInfo 객체
+
+        Returns:
+            team_applicant_info: 업데이트된 TeamApplicantInfo 객체
+        """
+        return self._confirm_payment_base(team_applicant_info, is_team=True)
 
     def _create_participant(self, applicant_info: ApplicantInfo):
         """
@@ -326,6 +385,33 @@ class CompetitionService:
 
         return participant_info
 
+    def _create_team_participant(self, team_applicant_info: TeamApplicantInfo):
+        """
+        팀 대회 신청자가 대회 참가 상태로 변경될 때 참가자 정보를 생성하는 메서드.
+
+        이 메서드는 다음 작업을 수행합니다:
+        1. 팀 신청자 정보에 등록된 팀 정보를 참가자 정보로 생성합니다.
+
+        Args:
+            team_applicant_info: TeamApplicantInfo 객체
+
+        Returns:
+            team_participant_info: 생성된 TeamParticipantInfo 객체
+        """
+        team_participant_info = TeamParticipantInfo.objects.create(
+            competition=team_applicant_info.competition,
+            team_applicant_info=team_applicant_info,
+            team=team_applicant_info.team
+        )
+
+        for applicant_info in team_applicant_info.applicant_list.all():
+            participant_info = self._create_participant(applicant_info)
+            participant_info.team_participant_info = team_participant_info
+            participant_info.team_participant_game_number = applicant_info.team_applicant_game_number
+            participant_info.save()
+
+        return team_participant_info
+
     def _cancel_application(self, applicant_info: ApplicantInfo):
         """
         참가자의 신청을 취소하는 메서드.
@@ -350,6 +436,34 @@ class CompetitionService:
 
         return applicant_info
 
+    def _cancel_team_application(self, team_applicant_info: TeamApplicantInfo):
+        """
+        팀 대회 신청을 취소하는 메서드.
+
+        이 메서드는 다음 작업을 수행합니다:
+        1. 팀 신청자 정보에 연결된 팀 참가자 정보를 삭제합니다.
+        2. 삭제된 팀 참가자 정보가 있을 경우, 참가 대기 중인 참가자 중 가장 높은 대기번호를 찾아 참가 정보를 생성합니다.
+        3. 취소된 팀 참가자 정보의 상태를 '관리자 취소'로 변경합니다.
+
+        Args:
+            team_applicant_info: TeamApplicantInfo 객체
+
+        Returns:
+            team_applicant_info: 업데이트된 TeamApplicantInfo 객체
+        """
+        team_participant_info = TeamParticipantInfo.objects.filter(
+            team_applicant_info=team_applicant_info).first()
+        team_participant_info.delete()
+        for participant_info in team_participant_info.team_participant_list.all():
+            participant_info.delete()
+        team_applicant_info.change_status_to_admin_canceled()
+        if team_participant_info:
+            self._create_team_participant_from_waiting_list(
+                team_applicant_info.competition
+            )
+
+        return team_applicant_info
+
     def _create_participant_from_waiting_list(self, competition):
         """
         대기 중인 참가자 중 가장 높은 대기번호를 가진 참가자 정보를 참가자 정보로 생성하는 메서드.
@@ -360,10 +474,29 @@ class CompetitionService:
         Args:
             competition: Competition 객체
         """
-        waiting_participant = ApplicantInfo.objects.filter(
-            competition=competition, status='pending_participation').order_by('waiting_number').first()
-        if waiting_participant:
-            self._create_participant(waiting_participant)
+        waiting_applicant = ApplicantInfo.objects.filter(
+            competition=competition, status='pending_participation'
+        ).order_by('waiting_number').first()
+        if waiting_applicant:
+            self._create_participant(waiting_applicant)
+
+        return None
+
+    def _create_team_participant_from_waiting_list(self, competition):
+        """
+        대기 중인 팀 참가자 중 가장 높은 대기번호를 가진 팀 참가자 정보를 참가자 정보로 생성하는 메서드.
+
+        이 메서드는 다음 작업을 수행합니다:
+        1. 대기 중인 팀 참가자 중 가장 높은 대기번호를 가진 팀 참가자 정보를 찾아 참가자 정보를 생성합니다.
+
+        Args:
+            competition: Competition 객체
+        """
+        waiting_team_applicant = TeamApplicantInfo.objects.filter(
+            competition=competition, status='pending_participation'
+        ).order_by('waiting_number').first()
+        if waiting_team_applicant:
+            self._create_team_participant(waiting_team_applicant)
 
         return None
 
