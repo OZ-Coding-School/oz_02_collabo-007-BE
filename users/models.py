@@ -92,3 +92,15 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, SoftDeleteModel, TimeStampe
     def set_club(self, club: Club):
         self.club = club
         self.save()
+
+    def get_tier(self, match_type: str) -> Tier | None:
+        """
+        사용자의 티어 정보를 반환합니다.
+
+        Args:
+            match_type (str): 매치 타입 (single, double)
+
+        Returns:
+            Tier | None: 사용자의 티어 정보
+        """
+        return self.tiers.filter(match_type__type=match_type).first()

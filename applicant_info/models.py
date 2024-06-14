@@ -1,10 +1,11 @@
 from django.db import models
 from core.models import TimeStampedModel, SoftDeleteModel
 from competition.models import Competition
+from team.models import Team
 from users.models import CustomUser
 
 
-class ApplicantInfo(TimeStampedModel, SoftDeleteModel):
+class BaseApplicantInfo(TimeStampedModel, SoftDeleteModel):
     DEPOSIT_CHOICES = (
         ('unpaid', '입금 대기'),
         ('pending_participation', '참가 대기중'),
@@ -16,15 +17,10 @@ class ApplicantInfo(TimeStampedModel, SoftDeleteModel):
     status = models.CharField(
         max_length=50, choices=DEPOSIT_CHOICES, default='unpaid')
     expired_date = models.DateTimeField(null=True)
-    competition = models.ForeignKey(
-        Competition, on_delete=models.CASCADE, related_name='applicants')
     waiting_number = models.IntegerField(blank=True, null=True)
 
-    def __str__(self):
-        return f"{self.id} / {self.competition.name}"
-
     class Meta:
-        db_table = 'applicant_info'
+        abstract = True
 
     def is_pending(self):
         """
@@ -82,3 +78,24 @@ class ApplicantInfo(TimeStampedModel, SoftDeleteModel):
             QuerySet: 연결된 CustomUser 객체들의 QuerySet.
         """
         return CustomUser.objects.filter(applicant__applicant_info=self)
+
+
+class ApplicantInfo(BaseApplicantInfo):
+    competition = models.ForeignKey(
+        Competition, on_delete=models.DO_NOTHING, related_name='applicants')
+    team_applicant_info = models.ForeignKey(
+        'TeamApplicantInfo', on_delete=models.DO_NOTHING, null=True, blank=True)
+    team_applicant_game_number = models.IntegerField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'applicant_info'
+
+
+class TeamApplicantInfo(BaseApplicantInfo):
+    competition = models.ForeignKey(
+        Competition, on_delete=models.DO_NOTHING, related_name='team_applicants')
+    team = models.ForeignKey(
+        Team, on_delete=models.DO_NOTHING, related_name='team_applicants')
+
+    class Meta:
+        db_table = 'team_applicant_info'
