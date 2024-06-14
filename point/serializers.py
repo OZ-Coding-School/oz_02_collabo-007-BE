@@ -40,38 +40,43 @@ class UserRankingSerializer(serializers.ModelSerializer):
 
     # 각 필드 이름 가져오는 인스턴스 메서드
     def get_user(self, obj):
-        if obj.user:
+        user = obj.get('user')
+        if user:
             return {
-                'id': obj.user.id,
-                'username': obj.user.username,
+                'id': user.id,
+                'username': user.username,
             }
         return None
 
     def get_club(self, obj):
-        if obj.user.club:
+        user = obj.get('user')
+        if user.club:
             return {
-                'id': obj.user.club.id,
-                'name': obj.user.club.name,
+                'id': user.club.id,
+                'name': user.club.name,
             }
         return None
 
     def get_tier(self, obj):
-        if obj.tier:
+        tier = obj.get('tier')
+        if tier:
             return {
-                'id': obj.tier.id,
-                'name': obj.tier.name,
+                'id': tier.id,
+                'name': tier.name,
                 'match_type_details': {
-                    'gender': obj.tier.match_type.gender,
-                    'type': obj.tier.match_type.type
+                    'gender': tier.match_type.gender,
+                    'type': tier.match_type.type
                 }
             }
         return None
     
     def get_image_url(self, obj):
-        if obj.user.image_url is None:
-            return None
-        return obj.user.image_url.image_url
-    
+        user = obj.get('user')
+        if user and user.image_url:
+            return user.image_url.image_url
+        return None
+        
+            
     
     
     
@@ -94,23 +99,25 @@ class TeamRankingSerializer(serializers.ModelSerializer):
 
     # 각 필드 이름 가져오는 인스턴스 메서드
     def get_team(self, obj):
-        if obj.team:
+        team = obj['team']
+        if team:
             return {
-                'id': obj.team.id,
-                'name': obj.team.name,
+                'id': team.id,
+                'name': team.name,
             }
         return None
-
 
     def get_club(self, obj):
-        if obj.team.club:
+        team = obj['team']
+        if team and team.club:
             return {
-                'id': obj.team.club.id,
-                'name': obj.team.club.name,
+                'id': team.club.id,
+                'name': team.club.name,
             }
         return None
- 
+
     def get_image_url(self, obj):
-        if obj.team.image_url is None:
-            return None
-        return obj.team.image_url.image_url
+        team = obj['team']
+        if team and team.image_url:
+            return team.image_url.image_url
+        return None

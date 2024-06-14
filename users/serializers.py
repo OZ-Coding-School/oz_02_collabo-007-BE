@@ -308,34 +308,37 @@ class MyProfileRankingSerializer(serializers.ModelSerializer):
     match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
     user= serializers.SerializerMethodField()
     tier = serializers.SerializerMethodField()
-    main_ranking = serializers.SerializerMethodField()
 
     class Meta:
         model = Point
-        fields = ('match_type_details', 'rank', 'total_points', 'user', 'tier', 'main_ranking')
+        fields = ('match_type_details', 'rank', 'total_points', 'user', 'tier')
 
-    # 각 필드 이름 가져오는 인스턴스 메서드
+     # 각 필드 이름 가져오는 인스턴스 메서드
     def get_user(self, obj):
-        if obj.user:
+        user = obj.get('user')
+        if user:
             return {
-                'id': obj.user.id,
-                'username': obj.user.username,
+                'id': user.id,
+                'username': user.username,
             }
         return None
 
 
     def get_tier(self, obj):
-        if obj.tier:
+        tier = obj.get('tier')
+        if tier:
             return {
-                'id': obj.tier.id,
-                'name': obj.tier.name,
+                'id': tier.id,
+                'name': tier.name,
+                'match_type_details': {
+                    'gender': tier.match_type.gender,
+                    'type': tier.match_type.type
+                }
             }
         return None
     
-    def get_main_ranking(self, obj):
-        return obj.user.main_ranking if obj.user else False
 
-    
+
     
 # 내 프로필 팀 랭킹 조회 serializer
 class MyProfileTeamRankingSerializer(serializers.ModelSerializer):
@@ -343,24 +346,34 @@ class MyProfileTeamRankingSerializer(serializers.ModelSerializer):
     rank = serializers.IntegerField(read_only=True)
     match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
     team= serializers.SerializerMethodField()
-    main_ranking = serializers.SerializerMethodField()
 
     class Meta:
         model = Point
-        fields = ('match_type_details', 'rank', 'total_points', 'team', 'main_ranking')
+        fields = ('match_type_details', 'rank', 'total_points', 'team')
 
     # 각 필드 이름 가져오는 인스턴스 메서드
     def get_team(self, obj):
-        if obj.team:
+        team = obj['team']
+        if team:
             return {
-                'id': obj.team.id,
-                'name': obj.team.name,
+                'id': team.id,
+                'name': team.name,
             }
         return None
 
+        
+        
+# 대표 랭킹 serializer
+class MainRankingSerializer(serializers.ModelSerializer):
+    main_ranking = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = ('main_ranking',)
 
     def get_main_ranking(self, obj):
-        return obj.user.main_ranking if obj.user else False
+        return obj.get_main_ranking_display()
+
 
 
 

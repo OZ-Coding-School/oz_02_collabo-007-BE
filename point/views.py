@@ -9,8 +9,11 @@ from .models import Point
 from rest_framework.response import Response
 from .serializers import UserRankingSerializer, TeamRankingSerializer
 import datetime
+from django.contrib.auth import get_user_model
+from team.models import Team
+from tier.models import Tier
 
-
+User = get_user_model()
 
 
 # 유저 랭킹 조회 API
@@ -22,8 +25,8 @@ class UserRankingView(APIView):
             openapi.Parameter('year', openapi.IN_QUERY, description="default= 실시간 랭킹", type=openapi.TYPE_INTEGER),
             openapi.Parameter('gender', openapi.IN_QUERY, description="default= male", type=openapi.TYPE_STRING),
             openapi.Parameter('type', openapi.IN_QUERY, description="default= single", type=openapi.TYPE_STRING),
-            openapi.Parameter('tier', openapi.IN_QUERY, description="default= Null", type=openapi.TYPE_STRING),
-            openapi.Parameter('name', openapi.IN_QUERY, description="deafault= Null", type=openapi.TYPE_STRING)
+            openapi.Parameter('tier', openapi.IN_QUERY, description="default= 1", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('name', openapi.IN_QUERY, description="default= Null", type=openapi.TYPE_STRING)
         ],
         responses={
             200: UserRankingSerializer(many=True),
@@ -33,63 +36,57 @@ class UserRankingView(APIView):
         }
     )
     def get(self, request, *args, **kwargs):
-        try:
-            # 쿼리 파라미터에서 연도 값을 가져옴
-            year_param = request.query_params.get('year')
-            
-            if year_param:
-                year = int(year_param)
-                # 해당 연도의 끝
-                end_of_year = datetime.datetime(year, 12, 31, 23, 59, 59)
-                
-                # 해당 연도 이전에 생성된 승점이고, 해당 연도 말까지 만료되지 않은 승점 필터링
-                queryset = Point.objects.filter(
-                    created_at__lt=end_of_year, # lt = 작다
-                    expired_date__gte=end_of_year # gte= 크거나 같다
-                )
-            else:
-                # 기본 필터: 현재 시간 기준 만료되지 않은 승점을 필터링 (쿼리파라미터에 빈 값 일때)
-                current_time = timezone.now()           
-                queryset = Point.objects.filter(expired_date__gte=current_time)
-            
-            # 타입 / 젠더 / 티어 에 대한 필터링
-            match_type_param = request.query_params.get('type', 'single') # 디폴트 값 지정 single
-            gender_param = request.query_params.get('gender', 'male') #디폴트 값 지정 male
-            tier_param = request.query_params.get('tier')
-            
-            if match_type_param:
-                queryset = queryset.filter(match_type__type=match_type_param)
-            if gender_param:
-                queryset = queryset.filter(match_type__gender=gender_param)
-            if tier_param:
-                queryset = queryset.filter(tier__name=tier_param)
-                
-                
-            # 타입, 젠더, 티어에 따라 필터링된 쿼리셋에 대해 포인트 합산 진행
-            queryset = queryset.annotate(total_points=Sum('points')).order_by('-total_points')
-            # 필터링된 쿼리셋에 대하여 순위 계산
-            ranked_queryset = []
-            for idx, obj in enumerate(queryset, start=1):
-                obj.rank = idx
-                ranked_queryset.append(obj)
-            
-            # 이름으로 필터링 진행
-            name_param = request.query_params.get('name')
-            if name_param:
-                ranked_queryset = [obj for obj in ranked_queryset if name_param.lower() in obj.user.username.lower()]
-            
-            if not ranked_queryset:
-                raise NotFound(detail='조건에 맞는 랭킹이 없습니다.')
-            
-            serializer = UserRankingSerializer(ranked_queryset, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+        year_param = request.query_params.get('year')
+        
+        if year_param:
+            year = int(year_param)
+            end_of_year = datetime.datetime(year, 12, 31, 23, 59, 59)
+            queryset = Point.objects.filter(
+                created_at__lt=end_of_year,
+                expired_date__gte=end_of_year
+            )
+        else:
+            current_time = timezone.now()
+            queryset = Point.objects.filter(expired_date__gte=current_time)
+        
+        match_type_param = request.query_params.get('type', 'single')
+        gender_param = request.query_params.get('gender', 'male')
+        tier_param = request.query_params.get('tier')
+        
+        if match_type_param:
+            queryset = queryset.filter(match_type__type=match_type_param)
+        if gender_param:
+            queryset = queryset.filter(match_type__gender=gender_param)
+        if tier_param:
+            try:
+                tier_param = int(tier_param)
+                queryset = queryset.filter(tier__id=tier_param)
+            except ValueError:
+                raise NotFound(detail='유효하지 않은 티어 값입니다.')
+        
+        queryset = queryset.values('user', 'tier').annotate(total_points=Sum('points')).order_by('-total_points')
+        
+        ranked_queryset = []
+        for idx, obj in enumerate(queryset, start=1):
+            user_id = obj['user']
+            user = User.objects.get(id=user_id)
+            tier_id = obj['tier']
+            tier = Tier.objects.get(id=tier_id)
+            obj['user'] = user 
+            obj['tier'] = tier
+            obj['rank'] = idx
+            ranked_queryset.append(obj)
+        
+        name_param = request.query_params.get('name')
+        if name_param:
+            ranked_queryset = [obj for obj in ranked_queryset if name_param.lower() in obj['user'].username.lower()]
+        
+        if not ranked_queryset:
+            raise NotFound(detail='조건에 맞는 랭킹이 없습니다.')
+        
+        serializer = UserRankingSerializer(ranked_queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
-        except NotFound as e:
-            return Response({'detail': str(e)}, status=status.HTTP_404_NOT_FOUND)
-        except PermissionDenied as e:
-            return Response({'detail': str(e)}, status=status.HTTP_403_FORBIDDEN)
-        except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         
         
@@ -137,7 +134,7 @@ class TeamRankingView(APIView):
             queryset = queryset.filter(match_type__type='team')
             
             # 각 팀의 총 포인트 합산 및 내림차순 정렬
-            queryset = queryset.annotate(total_points=Sum('points')).order_by('-total_points')
+            queryset = queryset.values('team').annotate(total_points=Sum('points')).order_by('-total_points')
             
             if not queryset.exists():
                 raise NotFound(detail='해당 매치 타입에 대한 랭킹이 없습니다.')
@@ -145,15 +142,19 @@ class TeamRankingView(APIView):
             # 순위를 계산하여 각 객체에 할당
             ranked_queryset = []
             for idx, obj in enumerate(queryset, start=1):
-                obj.rank = idx
+                team_id = obj['team']
+                team = Team.objects.get(id=team_id)
+                obj['team'] = team
+                obj['rank'] = idx
                 ranked_queryset.append(obj)
+                
             
             # 쿼리 파라미터에서 'team_name'을 받아옴
             team_name_param = request.query_params.get('name')
             
             # 'team_name' 파라미터가 존재하면 해당 이름을 포함하는 팀으로 필터링
             if team_name_param:
-                ranked_queryset = [obj for obj in ranked_queryset if team_name_param.lower() in obj.team.name.lower()]
+                ranked_queryset = [obj for obj in ranked_queryset if team_name_param.lower() in obj['team'].name.lower()]
             
             if not ranked_queryset:
                 raise NotFound(detail='해당 팀 이름에 대한 랭킹이 없습니다.')
@@ -233,35 +234,35 @@ class RealtimeMyRankingView(APIView):
 
 
             # 각 유저의 총 포인트 합산 및 내림차순 정렬 / annotate : 쿼리셋에 집계 값을 추가할 때 사용)
-            queryset = queryset.annotate(total_points=Sum('points')).order_by('-total_points')
+            queryset = queryset.values('user', 'tier').annotate(total_points=Sum('points')).order_by('-total_points')
 
-            if not queryset.exists():
+            if not queryset:
                 raise NotFound(detail='해당 매치타입에 대한 랭킹을 찾을 수 없습니다.')
             
             # 순위를 계산하여 각 객체에 할당
             ranked_queryset = []
             for idx, obj in enumerate(queryset, start=1):
-                obj.rank = idx
+                user_id = obj['user']
+                user = User.objects.get(id=user_id)
+                tier_id = obj['tier']
+                tier = Tier.objects.get(id=tier_id)
+                obj['user'] = user
+                obj['tier'] = tier
+                obj['rank'] = idx
                 ranked_queryset.append(obj)
                 
         
                 
             # 로그인 상태에 따라 my_ranking 정보를 다르게 설정
             my_ranking = None
-            user_rankings = []
-            if request.user.is_authenticated:
-                for obj in ranked_queryset:
-                    if obj.user == request.user:
-                        user_rankings.append(obj)
-                
-                if user_rankings:
-                    # UserRankingSerializer를 이용하여 사용자의 랭킹 정보 시리얼라이즈 진행
-                    serializer = UserRankingSerializer(user_rankings, many=True)
-                    my_ranking = serializer.data
-                else:
-                    my_ranking = '참가한 대회가 없습니다.'
+            user_rankings = [obj for obj in ranked_queryset if obj['user'] == request.user]
+            
+            if user_rankings:
+                # UserRankingSerializer를 이용하여 사용자의 랭킹 정보 시리얼라이즈 진행
+                serializer = UserRankingSerializer(user_rankings, many=True)
+                my_ranking = serializer.data
             else:
-                my_ranking = '로그인이 필요합니다.'
+                my_ranking = '참가한 대회가 없습니다.'
 
             return Response(my_ranking, status=status.HTTP_200_OK)
 
@@ -297,8 +298,8 @@ class RealtimeMyTeamRankingView(APIView):
             # match_type이 'team'인 경우만 필터링
             queryset = queryset.filter(match_type__type='team')
 
-            # 각 유저의 총 포인트 합산 및 내림차순 정렬 / annotate : 쿼리셋에 집계 값을 추가할 때 사용)
-            queryset = queryset.annotate(total_points=Sum('points')).order_by('-total_points')
+            # 각 팀의 총 포인트 합산 및 내림차순 정렬
+            queryset = queryset.values('team').annotate(total_points=Sum('points')).order_by('-total_points')
             
             if not queryset.exists():
                 raise NotFound(detail='해당 매치 타입에 대한 랭킹이 없습니다.')
@@ -306,21 +307,19 @@ class RealtimeMyTeamRankingView(APIView):
             # 순위를 계산하여 각 객체에 할당
             ranked_queryset = []
             for idx, obj in enumerate(queryset, start=1):
-                obj.rank = idx
+                team_id = obj['team']
+                team = Team.objects.get(id=team_id)
+                obj['team'] = team
+                obj['rank'] = idx
                 ranked_queryset.append(obj)
 
             # 로그인 상태에 따라 my_team_ranking 정보를 다르게 설정
             my_team_ranking = None
             if request.user.is_authenticated:
-                team_rank = None
-                for obj in ranked_queryset:
-                    if obj.team == request.user.team:
-                        team_rank = obj # obj가 request.user와 같은 팀에 속할 때 실행.
-                        break
-                
-                if team_rank:
-                    # TeamRankingSerializer를 이용하여 유저가 속한 팀 랭킹 정보 시리얼라이즈 진행
-                    serializer = TeamRankingSerializer(team_rank)
+                my_team = request.user.team
+                my_team_ranking = next((obj for obj in ranked_queryset if obj['team'] == my_team), None)
+                if my_team_ranking:
+                    serializer = TeamRankingSerializer(my_team_ranking)
                     my_team_ranking = serializer.data
                 else:
                     my_team_ranking = '참가한 대회가 없습니다.'

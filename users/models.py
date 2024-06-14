@@ -61,7 +61,17 @@ class CustomUser(AbstractBaseUser, PermissionsMixin, SoftDeleteModel, TimeStampe
     is_active = models.BooleanField(default=True)
     image_url = models.ForeignKey(
         ImageUrl, on_delete=models.DO_NOTHING, blank=True, null=True)
-    main_ranking = models.BooleanField(default=False)
+    RANKING_CHOICES = (
+        ('single', '단식'),
+        ('double', '복식'),
+        ('team', '팀'),
+    )
+    main_ranking = models.CharField(
+        max_length=255,
+        choices=RANKING_CHOICES,
+        blank=True,
+        null=True
+    )
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'phone'  # USERNAME_FIELD 로 지정된 값을 흔히 말하는 로그인 ID로 사용됨.

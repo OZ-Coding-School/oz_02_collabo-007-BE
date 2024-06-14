@@ -20,6 +20,7 @@ from .serializers import (CreateUserSerializer,
                           ChangePasswordSerializer,
                           MyProfileRankingSerializer,
                           MyProfileTeamRankingSerializer,
+                          MainRankingSerializer
                           )
 
 from django.utils import timezone
@@ -29,6 +30,8 @@ from point.models import Point
 from django.shortcuts import get_object_or_404
 from matchtype.models import MatchType
 from django.db.models import Q
+from tier.models import Tier
+from team.models import Team
 
 User = get_user_model()
 
@@ -288,6 +291,10 @@ class MyProfileView(APIView):
 
 
 
+
+
+
+
 # 로그인한 유저 랭킹을 제공하는 API
 class MyprofileRankingsView(APIView):
     
@@ -295,156 +302,161 @@ class MyprofileRankingsView(APIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_summary='로그인한 유저 랭킹을 조회하는 API',
-        operation_description='로그인한 사용자의 단식/복식 랭킹과 팀 랭킹 정보를 조회합니다.',
-        responses={
-            200: openapi.Response(
-                description="성공",
-                schema=openapi.Schema(
+    operation_summary='로그인한 유저 랭킹을 조회하는 API',
+    operation_description='로그인한 사용자의 단식/복식/팀 랭킹을 조회합니다.',
+    responses={
+        200: openapi.Response('', openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'mainRanking': openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'user_rankings': openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                properties={
-                                    'match_type_details': openapi.Schema(
-                                        type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            'gender': openapi.Schema(type=openapi.TYPE_STRING),
-                                            'type': openapi.Schema(type=openapi.TYPE_STRING),
-                                        }
-                                    ),
-                                    'rank': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                    'total_points': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                    'user': openapi.Schema(
-                                        type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            'id': openapi.Schema(type=openapi.TYPE_STRING),
-                                            'username': openapi.Schema(type=openapi.TYPE_STRING),
-                                        }
-                                    ),
-                                    'tier': openapi.Schema(
-                                        type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            'id': openapi.Schema(type=openapi.TYPE_STRING),
-                                            'name': openapi.Schema(type=openapi.TYPE_STRING),
-                                            'match_type_details': openapi.Schema(
-                                                type=openapi.TYPE_OBJECT,
-                                                properties={
-                                                    'gender': openapi.Schema(type=openapi.TYPE_STRING),
-                                                    'type': openapi.Schema(type=openapi.TYPE_STRING),
-                                                }
-                                            ),
-                                        }
-                                    ),
-                                    'club': openapi.Schema(
-                                        type=openapi.TYPE_OBJECT,
-                                        properties={
-                                            'id': openapi.Schema(type=openapi.TYPE_STRING),
-                                            'name': openapi.Schema(type=openapi.TYPE_STRING),
-                                        }
-                                    ),
-                                    'image_url': openapi.Schema(type=openapi.TYPE_STRING),
-                                }
-                            )
-                        ),
-                        'team_ranking': openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            properties={
-                                'match_type_details': openapi.Schema(
-                                    type=openapi.TYPE_OBJECT,
-                                    properties={
-                                        'gender': openapi.Schema(type=openapi.TYPE_STRING),
-                                        'type': openapi.Schema(type=openapi.TYPE_STRING),
-                                    }
-                                ),
-                                'rank': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                'total_points': openapi.Schema(type=openapi.TYPE_INTEGER),
-                                'team': openapi.Schema(
-                                    type=openapi.TYPE_OBJECT,
-                                    properties={
-                                        'id': openapi.Schema(type=openapi.TYPE_STRING),
-                                        'name': openapi.Schema(type=openapi.TYPE_STRING),
-                                    }
-                                )
-                            }
-                        )
+                        'ranking': openapi.Schema(type=openapi.TYPE_STRING)
                     }
-                )
-            ),
-            401: 'Authentication Error',
-            403: 'Permission Denied',
-            404: 'Not Found'
-        }
-    )
-    def get(self, request, *args, **kwargs):
-        try:
-            current_time = timezone.now()
-            user_queryset = Point.objects.filter(expired_date__gte=current_time)
-            team_queryset = Point.objects.filter(expired_date__gte=current_time, match_type__type='team', match_type__gender='mix')
-            
-            # 로그인된 사용자의 티어 정보를 가져옴
-            user_tiers = request.user.tiers.all()
-            
-            # 사용자가 속한 모든 매치 타입을 가져옴
-            user_queryset = user_queryset.filter(
-                match_type__in=[tier.match_type for tier in user_tiers]
-            )
-            
-            # 각 유저의 총 포인트 합산 및 내림차순 정렬
-            user_queryset = user_queryset.annotate(total_points=Sum('points')).order_by('-total_points')
-            team_queryset = team_queryset.annotate(total_points=Sum('points')).order_by('-total_points')
-            
-            if not user_queryset.exists() and not team_queryset.exists():
-                return Response({"detail": "랭킹 정보를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
-            
-            # 개인 순위를 계산하여 각 객체에 할당
-            user_ranked_queryset = []
-            for idx, obj in enumerate(user_queryset, start=1):
-                obj.rank = idx
-                user_ranked_queryset.append(obj)
-            
-            # 팀 순위를 계산하여 각 객체에 할당
-            team_ranked_queryset = []
-            for idx, obj in enumerate(team_queryset, start=1):
-                obj.rank = idx
-                team_ranked_queryset.append(obj)
-            
-            # 유저 랭킹 정보
-            user_rankings = [obj for obj in user_ranked_queryset if obj.user == request.user]
-            
-            # 팀 랭킹 정보
-            my_team_ranking = next((obj for obj in team_ranked_queryset if obj.team == request.user.team), None)
-            
-            # 순위를 유지한 상태에서 type이 single인 항목을 맨 위로 이동
-            user_rankings = sorted(user_rankings, key=lambda x: x.match_type.type != 'single')
-            
-            # `mainRanking` 필드를 매치 타입과 젠더에 따라 설정
-            post_data = request.data  # post 요청의 데이터
-            post_gender = post_data.get('gender')
-            post_type = post_data.get('type')
-            
-            for ranking in user_rankings:
-                if ranking.match_type.type == post_type and ranking.match_type.gender == post_gender:
-                    ranking.mainRanking = True
-                else:
-                    ranking.mainRanking = False
-            
-            user_rankings_serializer = MyProfileRankingSerializer(user_rankings, many=True, context={"request": request})
-            my_team_ranking_serializer = MyProfileTeamRankingSerializer(my_team_ranking, context={"request": request})
-            
-            response_data = {
-                'user_rankings': user_rankings_serializer.data if user_rankings else '단식/복식 랭킹 정보가 없습니다.',
-                'team_ranking': my_team_ranking_serializer.data if my_team_ranking else '팀 랭킹 정보가 없습니다.'
+                ),
+                'singleRanking': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'userId': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'userName': openapi.Schema(type=openapi.TYPE_STRING),
+                            'ranking': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'score': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        }
+                    )
+                ),
+                'doubleRanking': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'userId': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'userName': openapi.Schema(type=openapi.TYPE_STRING),
+                            'ranking': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'score': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        }
+                    )
+                ),
+                'teamRanking': openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'teamId': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'teamName': openapi.Schema(type=openapi.TYPE_STRING),
+                        'ranking': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'score': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    }
+                ),
             }
-            
-            return Response(response_data, status=status.HTTP_200_OK)
+        ))
+    }
+)
+
+    def get(self, request, *args, **kwargs):
+        current_time = timezone.now()
         
-        except NotFound as e:
-            return Response({'detail': str(e)}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # 로그인된 사용자의 티어 정보를 가져옴
+        user_tiers = request.user.tiers.all()
+        
+        # 사용자가 속한 모든 매치 타입을 가져옴
+        user_match_types = [tier.match_type for tier in user_tiers]
+        
+    
+
+        
+        # 매치 타입별 쿼리셋 생성
+        single_queryset = Point.objects.filter(
+            expired_date__gte=current_time,
+            match_type__type='single',
+            match_type__in=user_match_types
+        ).values('user', 'tier').annotate(total_points=Sum('points')).order_by('-total_points')
+        
+        double_queryset = Point.objects.filter(
+            expired_date__gte=current_time,
+            match_type__type='double',
+            match_type__in=user_match_types
+        ).values('user', 'tier').annotate(total_points=Sum('points')).order_by('-total_points')
+        
+        team_queryset = Point.objects.filter(
+            expired_date__gte=current_time,
+            match_type__type='team',
+        ).values('team').annotate(total_points=Sum('points')).order_by('-total_points')
+
+        if not single_queryset.exists() and not double_queryset.exists() and not team_queryset.exists():
+            return Response({"detail": "랭킹 정보를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 단식 순위를 계산하여 각 객체에 할당
+        single_ranked_queryset = []
+        for idx, obj in enumerate(single_queryset, start=1):
+            user_id = obj['user']
+            user = User.objects.get(id=user_id)
+            tier_id = obj['tier']
+            tier = Tier.objects.get(id=tier_id)
+            obj['user'] = user
+            obj['tier'] = tier
+            obj['rank'] = idx
+            single_ranked_queryset.append(obj)
+
+        # 복식 순위를 계산하여 각 객체에 할당
+        double_ranked_queryset = []
+        for idx, obj in enumerate(double_queryset, start=1):
+            user_id = obj['user']
+            user = User.objects.get(id=user_id)
+            tier_id = obj['tier']
+            tier = Tier.objects.get(id=tier_id)
+            obj['user'] = user
+            obj['tier'] = tier
+            obj['rank'] = idx
+            double_ranked_queryset.append(obj)
+
+        # 팀 순위를 계산하여 각 객체에 할당
+        team_ranked_queryset = []
+        for idx, obj in enumerate(team_queryset, start=1):
+            team_id = obj['team']
+            team = Team.objects.get(id=team_id)
+            obj['team'] = team
+            obj['rank'] = idx
+            team_ranked_queryset.append(obj)
+
+        # 단식 랭킹 정보
+        single_ranking = []
+        for obj in single_ranked_queryset:
+            user = obj['user']
+            user_id = user.id
+            if user == request.user:
+                single_ranking.append(obj)
+
+        # 복식 랭킹 정보
+        double_ranking = []
+        for obj in double_ranked_queryset:
+            user = obj['user']
+            user_id = user.id
+            if user == request.user:
+                double_ranking.append(obj)
+
+        # 팀 랭킹 정보
+        team_ranking = next((obj for obj in team_ranked_queryset if obj['team'] == request.user.team), None)
+        
+        
+        
+        
+        single_ranking_serializer = MyProfileRankingSerializer(single_ranking, many=True, context={"request": request})
+        double_ranking_serializer = MyProfileRankingSerializer(double_ranking, many=True, context={"request": request})
+        my_team_ranking_serializer = MyProfileTeamRankingSerializer(team_ranking, context={"request": request})
+
+        response_data = {
+            'main_ranking': MainRankingSerializer(request.user).data['main_ranking'],
+            'single_ranking': single_ranking_serializer.data if single_ranking else '단식 랭킹 정보가 없습니다.',
+            'double_ranking': double_ranking_serializer.data if double_ranking else '복식 랭킹 정보가 없습니다.',
+            'team_ranking': my_team_ranking_serializer.data if team_ranking else '팀 랭킹 정보가 없습니다.'
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+        # except NotFound as e:
+        #     return Response({'detail': str(e)}, status=status.HTTP_404_NOT_FOUND)
+        # except Exception as e:
+        #     return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
@@ -455,64 +467,25 @@ class SetMainRankingView(APIView):
     
     def post(self, request, *args, **kwargs):
         try:
-            current_time = timezone.now()
-            user_queryset = Point.objects.filter(expired_date__gte=current_time)
-            team_queryset = Point.objects.filter(expired_date__gte=current_time, match_type__type='team', match_type__gender='mix')
-
-            # 로그인된 사용자의 티어 정보를 가져옴
-            user_tiers = request.user.tiers.all()
-
-            # 사용자가 속한 모든 매치 타입을 가져옴
-            user_queryset = user_queryset.filter(
-                match_type__in=[tier.match_type for tier in user_tiers]
-            )
-
-            # 각 유저의 총 포인트 합산 및 내림차순 정렬
-            user_queryset = user_queryset.annotate(total_points=Sum('points')).order_by('-total_points')
-            team_queryset = team_queryset.annotate(total_points=Sum('points')).order_by('-total_points')
-
-            if not user_queryset.exists() and not team_queryset.exists():
-                return Response({"detail": "랭킹 정보를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
-
-            # 개인 순위를 계산하여 각 객체에 할당
-            user_ranked_queryset = []
-            for idx, obj in enumerate(user_queryset, start=1):
-                obj.rank = idx
-                user_ranked_queryset.append(obj)
-
-            # 팀 순위를 계산하여 각 객체에 할당
-            team_ranked_queryset = []
-            for idx, obj in enumerate(team_queryset, start=1):
-                obj.rank = idx
-                team_ranked_queryset.append(obj)
-
-            # 유저 랭킹 정보
-            user_rankings = [obj for obj in user_ranked_queryset if obj.user == request.user]
-
-            # 팀 랭킹 정보
-            my_team_ranking = next((obj for obj in team_ranked_queryset if obj.team == request.user.team), None)
-
-            # 순위를 유지한 상태에서 type이 single인 항목을 맨 위로 이동
-            user_rankings = sorted(user_rankings, key=lambda x: x.match_type.type != 'single')
-
-            # `mainRanking` 필드를 매치 타입과 젠더에 따라 설정
-            post_data = request.data
-            post_gender = post_data.get('gender')
-            post_type = post_data.get('type')
-
-            for ranking in user_rankings:
-                if ranking.match_type.type == post_type and ranking.match_type.gender == post_gender:
-                    ranking.mainRanking = True
-                else:
-                    ranking.mainRanking = False
-
-            user_rankings_serializer = MyProfileRankingSerializer(user_rankings, many=True, context={"request": request})
+            gender = request.data.get('gender')
+            match_type = request.data.get('type')
             
+            if not gender or not match_type:
+                return Response({"detail": "매치 타입과 성별 정보가 필요합니다."}, status=status.HTTP_400_BAD_REQUEST)
             
-
-            return Response({
-                'user_rankings': user_rankings_serializer.data
-            }, status=status.HTTP_200_OK)
-
+            # 사용자의 기존 대표 랭킹을 모두 False로 설정
+            request.user.point_set.filter(match_type__gender=gender, match_type__type=match_type).update(main_ranking=False)
+            
+            # 새로운 대표 랭킹으로 설정할 랭킹 객체 업데이트
+            try:
+                new_main_ranking = Point.objects.get(user=request.user, match_type__gender=gender, match_type__type=match_type)
+                request.user.main_ranking = new_main_ranking
+                request.user.save()
+                new_main_ranking.save()
+            except Point.DoesNotExist:
+                return Response({"detail": "해당 랭킹 정보를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
+            
+            return Response({"detail": "대표 랭킹이 성공적으로 업데이트되었습니다."}, status=status.HTTP_200_OK)
+        
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
