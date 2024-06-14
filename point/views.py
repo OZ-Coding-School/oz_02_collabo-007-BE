@@ -254,15 +254,16 @@ class RealtimeMyRankingView(APIView):
         
                 
             # 로그인 상태에 따라 my_ranking 정보를 다르게 설정
-            my_ranking = None
-            user_rankings = [obj for obj in ranked_queryset if obj['user'] == request.user]
-            
-            if user_rankings:
-                # UserRankingSerializer를 이용하여 사용자의 랭킹 정보 시리얼라이즈 진행
-                serializer = UserRankingSerializer(user_rankings, many=True)
-                my_ranking = serializer.data
+            if request.user.is_authenticated:
+                user_rankings = [obj for obj in ranked_queryset if obj['user'] == request.user]
+                if user_rankings:
+                    # UserRankingSerializer를 이용하여 사용자의 랭킹 정보 시리얼라이즈 진행
+                    serializer = UserRankingSerializer(user_rankings, many=True)
+                    my_ranking = serializer.data
+                else:
+                    my_ranking = '참가한 대회가 없습니다.'
             else:
-                my_ranking = '참가한 대회가 없습니다.'
+                my_ranking = '로그인이 필요합니다.'
 
             return Response(my_ranking, status=status.HTTP_200_OK)
 
