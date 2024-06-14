@@ -365,14 +365,11 @@ class MyProfileTeamRankingSerializer(serializers.ModelSerializer):
         
 # 대표 랭킹 serializer
 class MainRankingSerializer(serializers.ModelSerializer):
-    main_ranking = serializers.SerializerMethodField()
-
+   
     class Meta:
         model = CustomUser
         fields = ('main_ranking',)
 
-    def get_main_ranking(self, obj):
-        return obj.get_main_ranking_display()
 
 
 

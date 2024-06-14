@@ -446,16 +446,16 @@ class MyprofileRankingsView(APIView):
 
         response_data = {
             'main_ranking': MainRankingSerializer(request.user).data['main_ranking'],
-            'single_ranking': single_ranking_serializer.data if single_ranking else '단식 랭킹 정보가 없습니다.',
-            'double_ranking': double_ranking_serializer.data if double_ranking else '복식 랭킹 정보가 없습니다.',
-            'team_ranking': my_team_ranking_serializer.data if team_ranking else '팀 랭킹 정보가 없습니다.'
+            'single_ranking': single_ranking_serializer.data if single_ranking else None,
+            'double_ranking': double_ranking_serializer.data if double_ranking else None,
+            'team_ranking': my_team_ranking_serializer.data if team_ranking else None
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
         
         # except NotFound as e:
         #     return Response({'detail': str(e)}, status=status.HTTP_404_NOT_FOUND)
-        # except Exception as e:
+        # except Exception as e:/
         #     return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -465,27 +465,30 @@ class SetMainRankingView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary='대표 랭킹 설정 API',
+        operation_description='유저의 대표 랭킹을 설정하는 API',
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'mainRanking': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    enum=['single', 'double', 'team'],
+                    description='(\'single\', \'double\', \'team\' 중 하나)'
+                )
+            }
+        ),
+        responses={
+            200: openapi.Response('메인 랭킹이 업데이트되었습니다.'),
+            400: openapi.Response('main_ranking 값은 \'single\', \'double\', \'team\' 중 하나여야 합니다.')
+        }
+    )
     def post(self, request, *args, **kwargs):
-        try:
-            gender = request.data.get('gender')
-            match_type = request.data.get('type')
-            
-            if not gender or not match_type:
-                return Response({"detail": "매치 타입과 성별 정보가 필요합니다."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            # 사용자의 기존 대표 랭킹을 모두 False로 설정
-            request.user.point_set.filter(match_type__gender=gender, match_type__type=match_type).update(main_ranking=False)
-            
-            # 새로운 대표 랭킹으로 설정할 랭킹 객체 업데이트
-            try:
-                new_main_ranking = Point.objects.get(user=request.user, match_type__gender=gender, match_type__type=match_type)
-                request.user.main_ranking = new_main_ranking
-                request.user.save()
-                new_main_ranking.save()
-            except Point.DoesNotExist:
-                return Response({"detail": "해당 랭킹 정보를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
-            
-            return Response({"detail": "대표 랭킹이 성공적으로 업데이트되었습니다."}, status=status.HTTP_200_OK)
-        
-        except Exception as e:
-            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        main_ranking = request.data.get('main_ranking')
+        if main_ranking not in ['single', 'double', 'team']:
+            return Response({"detail": "main_ranking 값은 'single', 'double', 'team' 중 하나여야 합니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        request.user.main_ranking = main_ranking
+        request.user.save()
+
+        return Response({"detail": f"메인 랭킹이 '{main_ranking}'으로 업데이트되었습니다."}, status=status.HTTP_200_OK)
