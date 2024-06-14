@@ -80,17 +80,6 @@ class BaseApplicantInfo(TimeStampedModel, SoftDeleteModel):
         return CustomUser.objects.filter(applicant__applicant_info=self)
 
 
-class ApplicantInfo(BaseApplicantInfo):
-    competition = models.ForeignKey(
-        Competition, on_delete=models.DO_NOTHING, related_name='applicants')
-    team_applicant_info = models.ForeignKey(
-        'TeamApplicantInfo', on_delete=models.DO_NOTHING, null=True, blank=True)
-    team_applicant_game_number = models.IntegerField(blank=True, null=True)
-
-    class Meta:
-        db_table = 'applicant_info'
-
-
 class TeamApplicantInfo(BaseApplicantInfo):
     competition = models.ForeignKey(
         Competition, on_delete=models.DO_NOTHING, related_name='team_applicants')
@@ -99,3 +88,15 @@ class TeamApplicantInfo(BaseApplicantInfo):
 
     class Meta:
         db_table = 'team_applicant_info'
+
+
+class ApplicantInfo(BaseApplicantInfo):
+    competition = models.ForeignKey(
+        Competition, on_delete=models.DO_NOTHING, related_name='applicants')
+    team_applicant_info = models.ForeignKey(
+        TeamApplicantInfo, on_delete=models.DO_NOTHING, related_name='applicant_list',
+        null=True, blank=True)
+    team_applicant_game_number = models.IntegerField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'applicant_info'

@@ -1,8 +1,9 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from applicant_info.models import ApplicantInfo
-from competition.models import Competition
+from applicant_info.models import ApplicantInfo, TeamApplicantInfo
+from competition.models import Competition, CompetitionTeamMatch
 from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchResultSerializer, MatchSerializer, ParticipantInfoSerializer, TeamApplicantInfoSerializer, TeamCompetitionApplySerializer, TeamCompetitionListSerializer
 from custom_admin.pagination import StandardResultsSetPagination
 from custom_admin.service.competition_service import CompetitionService
@@ -96,12 +97,110 @@ class CompetitionViewSet(viewsets.ModelViewSet):
     def applicants(self, request, pk=None):
         competition = self.get_object()
         applicants = self.competition_service.get_applicants(competition)
-
-        if competition.match_type.is_team_game():
-            serializer = TeamApplicantInfoSerializer(applicants, many=True)
-        else:
-            serializer = ApplicantInfoSerializer(applicants, many=True)
+        serializer = ApplicantInfoSerializer(applicants, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='대회 팀 참가자 목록 조회',
+        operation_description='대회 참가자 목록을 조회합니다.',
+        responses={
+            200: ApplicantInfoSerializer,
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['get'], url_path='team/applicants', url_name='competition-team-applicants')
+    def team_applicants(self, request, pk=None):
+        competition = self.get_object()
+        applicants = self.competition_service.get_applicants(competition)
+        serializer = TeamApplicantInfoSerializer(applicants, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='대회 팀 참가자 상세 조회',
+        operation_description='대회 팀 참가자 상세 정보를 조회합니다.',
+        responses={
+            200: TeamApplicantInfoSerializer,
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['get'], url_path=r'team/applicants/(?P<applicant_id>\d+)', url_name='team-applicant')
+    def team_applicant(self, request, *args, **kwargs):
+        competition_id = kwargs.get('pk')
+        applicant_id = kwargs.get('applicant_id')
+
+        payment = Payment.objects.filter(team_applicant_info=OuterRef('pk'))
+        refund = Payment.objects.filter(
+            team_applicant_info=OuterRef('pk'), refund__isnull=False)
+
+        team_matches = CompetitionTeamMatch.objects.filter(
+            competition_id=competition_id
+        ).select_related(
+            'tier', 'match_type'
+        )
+
+        team_applicant = get_object_or_404(
+            TeamApplicantInfo.objects.select_related(
+                'team'
+            ).prefetch_related(
+                Prefetch(
+                    'applicant_list',
+                    queryset=ApplicantInfo.objects.prefetch_related(
+                        'applicants__user'
+                    )
+                )
+            ).annotate(
+                has_payment=Exists(payment),
+                has_refund=Exists(refund)
+            ),
+            pk=applicant_id
+        )
+
+        response_data = []
+        for match in team_matches:
+            match_data = {
+                'game_number': match.game_number,
+                'tier': {
+                    'id': match.tier.id if match.tier else None,
+                    'name': match.tier.name if match.tier else None,
+                },
+                'match_type': {
+                    'id': match.match_type.id,
+                    'gender': match.match_type.gender,
+                    'type': match.match_type.type,
+                },
+                'applicants': []
+            }
+
+            for applicant_info in team_applicant.applicant_list.all():
+                if applicant_info.team_applicant_game_number != match.game_number:
+                    continue
+
+                for applicant in applicant_info.applicants.all():
+                    user_data = {
+                        'id': applicant.user.id,
+                        'username': applicant.user.username,
+                    }
+                    match_data['applicants'].append(user_data)
+
+            response_data.append(match_data)
+
+        team_data = {
+            'id': team_applicant.team.id,
+            'name': team_applicant.team.name,
+            'team_applicant_id': team_applicant.id,
+            'status': team_applicant.status,
+            'has_payment': team_applicant.has_payment,
+            'has_refund': team_applicant.has_refund
+        }
+
+        return Response({
+            'team': team_data,
+            'games': response_data
+        }, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         operation_summary='입금 처리',
