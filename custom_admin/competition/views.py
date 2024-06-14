@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from applicant_info.models import ApplicantInfo, TeamApplicantInfo
 from competition.models import Competition, CompetitionTeamMatch
-from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchResultSerializer, MatchSerializer, ParticipantInfoSerializer, TeamApplicantInfoSerializer, TeamCompetitionApplySerializer, TeamCompetitionListSerializer
+from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchResultSerializer, MatchSerializer, ParticipantInfoSerializer, TeamApplicantInfoSerializer, TeamCompetitionApplySerializer, TeamCompetitionListSerializer, TeamParticipantInfoSerializer
 from custom_admin.pagination import StandardResultsSetPagination
 from custom_admin.service.competition_service import CompetitionService
 from custom_admin.service.image_service import ImageService
@@ -12,7 +12,7 @@ from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Prefetch, Exists, OuterRef
 from match.models import Match
 from participant.models import Participant
-from participant_info.models import ParticipantInfo
+from participant_info.models import ParticipantInfo, TeamParticipantInfo
 from payments.models import Payment
 
 
@@ -81,7 +81,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
             return Response(CompetitionSerializer(competition).data, status=status.HTTP_201_CREATED)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         operation_summary='대회 참가자 목록 조회',
@@ -222,7 +222,31 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         except ApplicantInfo.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response('입금 확인이 완료되었습니다.', status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='팀 대회 신청입금 처리',
+        operation_description='팀 대회 신청의 입금을 처리합니다.',
+        responses={
+            200: 'Payment processed successfully',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['post'], url_path=r'team/applicants/(?P<applicant_id>\d+)/payment', url_name='process-team-payment')
+    def process_team_payment(self, request, * args, **kwargs):
+        try:
+            applicant_id = kwargs.get('applicant_id')
+            applicant_info = TeamApplicantInfo.objects.get(pk=applicant_id)
+            self.competition_service.process_team_payment(applicant_info)
+        except TeamApplicantInfo.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response('입금 확인이 완료되었습니다.', status=status.HTTP_200_OK)
 
@@ -249,7 +273,34 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         except ApplicantInfo.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response('신청이 취소되었습니다.', status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='팀 신청 취소',
+        operation_description='팀의 대회 신청을 취소합니다.',
+        responses={
+            200: 'Application canceled successfully',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['post'], url_path=r'team/applicants/(?P<applicant_id>\d+)/cancel', url_name='cancel-team-application')
+    def cancel_team_application(self, request, *args, **kwargs):
+        try:
+            applicant_id = kwargs.get('applicant_id')
+            applicant_info = TeamApplicantInfo.objects.get(pk=applicant_id)
+            if applicant_info.is_canceled():
+                return Response('이미 취소된 신청입니다.', status=status.HTTP_400_BAD_REQUEST)
+
+            self.competition_service.cancel_team_application(applicant_info)
+        except TeamApplicantInfo.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response('신청이 취소되었습니다.', status=status.HTTP_200_OK)
 
@@ -273,7 +324,31 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         except ApplicantInfo.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response('환불이 완료되었습니다.', status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='팀 대회 신청 환불 처리',
+        operation_description='팀 대회 신청의 환불을 처리합니다.',
+        responses={
+            200: 'Refund processed successfully',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['post'], url_path=r'team/applicants/(?P<applicant_id>\d+)/refund', url_name='process-team-refund')
+    def process_team_refund(self, request, *args, **kwargs):
+        try:
+            applicant_id = kwargs.get('applicant_id')
+            applicant_info = TeamApplicantInfo.objects.get(pk=applicant_id)
+            self.competition_service.process_team_refund(applicant_info)
+        except ApplicantInfo.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response('환불이 완료되었습니다.', status=status.HTTP_200_OK)
 
@@ -297,6 +372,29 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         )
 
         serializer = ParticipantInfoSerializer(participant_infos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary='팀 대회 참가자 목록 조회',
+        operation_description='팀 대회 참가자 목록을 조회합니다.',
+        responses={
+            200: TeamParticipantInfoSerializer,
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['get'], url_path='team/participants', url_name='competition-team-participants')
+    def team_participants(self, request, pk=None):
+        competition = self.get_object()
+        team_applicant_infos = TeamParticipantInfo.objects.filter(
+            competition=competition
+        ).select_related(
+            'team'
+        )
+
+        serializer = TeamParticipantInfoSerializer(
+            team_applicant_infos, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
@@ -338,7 +436,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
                     serializer.validated_data)
                 return Response(MatchSerializer(result).data, status=status.HTTP_201_CREATED)
             except Exception as e:
-                return Response(status=status.HTTP_400_BAD_REQUEST)
+                return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         if request.method == 'GET':
             competition = self.get_object()
@@ -389,7 +487,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
                     match=match, match_data=serializer.validated_data)
                 return Response('경기 정보를 수정했습니다.', status=status.HTTP_200_OK)
             except Exception as e:
-                return Response(status=status.HTTP_400_BAD_REQUEST)
+                return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         if request.method == 'GET':
             match = Match.objects.select_related(
                 'a_team', 'b_team', 'competition', 'competition__tier', 'competition__match_type', 'competition__image_url'
@@ -421,7 +519,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             competition = self.get_object()
             self.competition_service.start_competition(competition)
         except Exception as e:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response('대회가 시작되었습니다.', status=status.HTTP_200_OK)
 
@@ -445,7 +543,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             self.competition_service.end_competition(
                 competition, winner_id=winner_id, runner_up_id=runner_up_id)
         except Exception as e:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response('대회가 종료되었습니다.', status=status.HTTP_200_OK)
 
@@ -500,7 +598,6 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             self.competition_service.team_apply(
                 competition, serializer.validated_data)
         except Exception as e:
-            print(e.with_traceback())
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response('팀 신청이 완료되었습니다.', status=status.HTTP_200_OK)
