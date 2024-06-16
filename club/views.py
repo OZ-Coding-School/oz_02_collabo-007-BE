@@ -79,7 +79,7 @@ class ClubDetailView(APIView):
             
 
             # 클럽에 속한 상위 3명 유저 정보 가져오기 (코치로 등록된 유저 제외)
-            users = CustomUser.objects.filter(club=club).exclude(id__in=coaches_users_ids).order_by('id')[:3] # 추후에 order_by('-score')[:3] 으로 변경
+            users = CustomUser.objects.filter(club=club).exclude(id__in=coaches_users_ids).order_by('username')[:3] # 추후에 order_by('-score')[:3] 으로 변경
             user_serializer = UserWithTeamInfoSerializer(users, many=True)
 
             # 클럽 정보와 함께 코치, 팀, 유저 정보 포함하여 응답
@@ -117,7 +117,7 @@ class ClubUsersListView(APIView):
             coaches_users_ids = coaches.values_list('user', flat=True)
             
             # 클럽에 속한 유저 정보 가져오기 (코치로 등록된 유저 제외)
-            users = CustomUser.objects.filter(club=club).exclude(id__in=coaches_users_ids).order_by('id')
+            users = CustomUser.objects.filter(club=club).exclude(id__in=coaches_users_ids).order_by('username')
             user_serializer = UserWithTeamInfoSerializer(users, many=True)
 
             # 유저 정보 포함하여 응답
