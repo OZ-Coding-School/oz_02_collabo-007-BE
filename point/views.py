@@ -321,7 +321,7 @@ class RealtimeMyTeamRankingView(APIView):
                 my_team_ranking = next((obj for obj in ranked_queryset if obj['team'] == my_team), None)
                 if my_team_ranking:
                     serializer = TeamRankingSerializer(my_team_ranking)
-                    my_team_ranking = serializer.data
+                    my_team_ranking = [serializer.data]
                 else:
                     return Response({"detail": "참가한 대회가 없습니다."}, status=status.HTTP_200_OK)
             else:
