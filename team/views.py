@@ -20,7 +20,7 @@ class TeamDetailView(APIView):
             team_serializer = TeamDetailSerializer(team)
 
             # 팀에 속한 상위 3명 유저 정보 가져오기
-            users = CustomUser.objects.filter(team=team).order_by('id')[:3] # 추후에 order_by('-score')[:3] 으로 변경
+            users = CustomUser.objects.filter(team=team).order_by('username')[:3]
             user_serializer = UserWithTeamInfoSerializer(users, many=True)
 
             
@@ -50,7 +50,7 @@ class TeamUsersListView(APIView):
             team = Team.objects.get(pk=pk)
             
             # 클럽에 속한 유저 정보 가져오기
-            users = CustomUser.objects.filter(team=team).order_by('id')
+            users = CustomUser.objects.filter(team=team).order_by('username')
             user_serializer = UserWithTeamInfoSerializer(users, many=True)
 
             # 유저 정보 포함하여 응답
