@@ -446,9 +446,9 @@ class MyprofileRankingsView(APIView):
 
         response_data = {
             'main_ranking': MainRankingSerializer(request.user).data['main_ranking'],
-            'single_ranking': single_ranking_serializer.data if single_ranking else None,
-            'double_ranking': double_ranking_serializer.data if double_ranking else None,
-            'team_ranking': [my_team_ranking_serializer.data] if team_ranking else None
+            'single': single_ranking_serializer.data if single_ranking else None,
+            'double': double_ranking_serializer.data if double_ranking else None,
+            'team': [my_team_ranking_serializer.data] if team_ranking else None
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
