@@ -82,7 +82,7 @@ class UserRankingView(APIView):
             ranked_queryset = [obj for obj in ranked_queryset if name_param.lower() in obj['user'].username.lower()]
         
         if not ranked_queryset:
-            raise NotFound(detail='조건에 맞는 랭킹이 없습니다.')
+            return Response({'detail': '조건에 맞는 랭킹이 없습니다.'}, status=status.HTTP_200_OK)
         
         serializer = UserRankingSerializer(ranked_queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -137,7 +137,7 @@ class TeamRankingView(APIView):
             queryset = queryset.values('team').annotate(total_points=Sum('points')).order_by('-total_points')
             
             if not queryset.exists():
-                raise NotFound(detail='해당 매치 타입에 대한 랭킹이 없습니다.')
+                return Response({'detail': '조건에 맞는 랭킹이 없습니다.'}, status=status.HTTP_200_OK)
             
             # 순위를 계산하여 각 객체에 할당
             ranked_queryset = []
@@ -237,7 +237,7 @@ class RealtimeMyRankingView(APIView):
             queryset = queryset.values('user', 'tier').annotate(total_points=Sum('points')).order_by('-total_points')
 
             if not queryset:
-                raise NotFound(detail='해당 매치타입에 대한 랭킹을 찾을 수 없습니다.')
+                return Response({"detail": "참가한 대회가 없습니다."}, status=200)
             
             # 순위를 계산하여 각 객체에 할당
             ranked_queryset = []
@@ -261,7 +261,7 @@ class RealtimeMyRankingView(APIView):
                     serializer = UserRankingSerializer(user_rankings, many=True)
                     my_ranking = serializer.data
                 else:
-                    my_ranking = '참가한 대회가 없습니다.'
+                    return Response({"detail": "참가한 대회가 없습니다."}, status=status.HTTP_200_OK)
             else:
                 my_ranking = '로그인이 필요합니다.'
 
@@ -302,8 +302,8 @@ class RealtimeMyTeamRankingView(APIView):
             # 각 팀의 총 포인트 합산 및 내림차순 정렬
             queryset = queryset.values('team').annotate(total_points=Sum('points')).order_by('-total_points')
             
-            if not queryset.exists():
-                raise NotFound(detail='해당 매치 타입에 대한 랭킹이 없습니다.')
+            if not queryset:
+                return Response({"detail": "참가한 대회가 없습니다."}, status=200)
             
             # 순위를 계산하여 각 객체에 할당
             ranked_queryset = []
@@ -323,7 +323,7 @@ class RealtimeMyTeamRankingView(APIView):
                     serializer = TeamRankingSerializer(my_team_ranking)
                     my_team_ranking = serializer.data
                 else:
-                    my_team_ranking = '참가한 대회가 없습니다.'
+                    return Response({"detail": "참가한 대회가 없습니다."}, status=status.HTTP_200_OK)
             else:
                 my_team_ranking = '로그인이 필요합니다.'
 
