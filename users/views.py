@@ -621,7 +621,7 @@ class UserRankingSearchView(APIView):
         response_data = {
             'single': single_ranking_serializer.data if single_ranked_queryset else None,
             'double': double_ranking_serializer.data if double_ranked_queryset else None,
-            'team': my_team_ranking_serializer.data if my_team_ranking_serializer else None
+            'team': my_team_ranking_serializer.data if team_ranked_queryset else None
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
