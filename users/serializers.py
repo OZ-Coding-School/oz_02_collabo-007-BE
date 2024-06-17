@@ -396,3 +396,70 @@ class UserWithClubInfoSerializer(serializers.ModelSerializer):
                 'name': obj.club.name
             }
         return None
+    
+    
+    
+    
+    
+# 특정 유저 랭킹조회 serializer
+class UserRankingSearchSerializer(serializers.ModelSerializer):
+    total_points = serializers.IntegerField(read_only=True)
+    rank = serializers.IntegerField(read_only=True)
+    match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
+    user= serializers.SerializerMethodField()
+    tier = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Point
+        fields = ('match_type_details', 'rank', 'total_points', 'user', 'tier')
+
+     # 각 필드 이름 가져오는 인스턴스 메서드
+    def get_user(self, obj):
+        user = obj.get('user')
+        if user:
+            return {
+                'id': user.id,
+                'username': user.username,
+            }
+        return None
+
+
+    def get_tier(self, obj):
+        tier = obj.get('tier')
+        if tier:
+            return {
+                'id': tier.id,
+                'name': tier.name,
+                'match_type_details': {
+                    'gender': tier.match_type.gender,
+                    'type': tier.match_type.type
+                }
+            }
+        return None
+    
+    
+    
+    
+    
+    
+
+# 특정 유저의 팀 랭킹 조회 serializer
+class UserTeamRankingSearchSerializer(serializers.ModelSerializer):
+    total_points = serializers.IntegerField(read_only=True)
+    rank = serializers.IntegerField(read_only=True)
+    match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
+    team= serializers.SerializerMethodField()
+
+    class Meta:
+        model = Point
+        fields = ('match_type_details', 'rank', 'total_points', 'team')
+
+    # 각 필드 이름 가져오는 인스턴스 메서드
+    def get_team(self, obj):
+        team = obj.get('team')
+        if team:
+            return {
+                'id': team.id,
+                'name': team.name,
+            }
+        return None

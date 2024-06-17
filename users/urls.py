@@ -12,6 +12,7 @@ from .views import(
                     UpdateMyProfileAPIView,
                     ChangePasswordView,
                     SetMainRankingView,
+                    UserRankingSearchView,
 )
 
 
@@ -26,6 +27,7 @@ urlpatterns = [
     path('user/myprofile/ranking/', MyprofileRankingsView.as_view(), name='my-profile-ranking'), # 내 프로필 랭킹 조회
     path('user/myprofile/main/ranking/', SetMainRankingView.as_view(), name='set-main-ranking'), # 대표랭킹 설정 API
     path('user/<int:pk>/', UserDetailView.as_view(), name='user-detail'), # 특정 유저 상세정보 조회
+    path('user/<int:user_id>/ranking/', UserRankingSearchView.as_view(), name='user-ranking'), # 특정 유저 랭킹 조회
     path('user/myprofile/update/', UpdateMyProfileAPIView.as_view(), name='update-my-profile'), # 내 프로필 업데이트 api
     path('user/myprofile/update/password/', ChangePasswordView.as_view(), name='change-password'), # 비밀번호 변경 api
 ]
