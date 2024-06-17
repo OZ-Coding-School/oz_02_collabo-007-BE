@@ -22,7 +22,7 @@ from applicant_info.models import ApplicantInfo
 from applicant.models import Applicant
 from participant.models import Participant
 from participant_info.models import ParticipantInfo
-from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplyInfoSerializer, CompetitionApplySerializer, MyCompetitionSerializer, CompetitionResultSerializer
+from .serializers import CompetitionListSerializer, CompetitionDetailInfoSerializer, CompetitionApplySerializer, MyCompetitionSerializer, CompetitionResultSerializer
 from applicant_info.serializers import ApplicantInfoSerializer, CompetitionApplicantInfoSerializer
 from applicant.serializers import ApplicantSerializer, CompetitionApplicantSerializer
 from users.serializers import UserWithClubInfoSerializer
