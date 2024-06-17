@@ -37,6 +37,18 @@ class CompetitionListView(APIView):
     """
     permission_classes = [AllowAny]
     
+    @swagger_auto_schema(
+        operation_summary='전체 대회 리스트 조회',
+        operation_description='쿼리파라미터를 사용하여 성별 / 단, 복식 조건 조회 가능 (예시 /api/v1/competitions?gender=male&matchType=single)',
+        manual_parameters=[
+            openapi.Parameter('gender', openapi.IN_QUERY, type=openapi.TYPE_STRING),
+            openapi.Parameter('matchType', openapi.IN_QUERY, type=openapi.TYPE_STRING)
+        ],
+        responses={
+            200: CompetitionListSerializer(many=True),
+        }
+    )
+    
     def get(self, request):
         # 쿼리 파라미터로부터 gender와 type 가져옴
         gender = request.query_params.get('gender')
@@ -58,6 +70,15 @@ class CompetitionDetailView(APIView):
     대회 상세보기
     """
     permission_classes = [AllowAny]
+    
+    @swagger_auto_schema(
+        operation_summary='대회 상세 보기',
+        operation_description='하나의 대회에 대해 상세하게 보여준다.',
+        responses={
+            200: CompetitionDetailInfoSerializer(many=True),
+            404: 'Not Found'
+        }
+    )
     
     def get(self, request, pk):
         try:
@@ -145,6 +166,20 @@ class CompetitionApplyView(APIView):
 
     permission_classes = [IsAuthenticated]
     parser_classes = (CamelCaseFormParser, CamelCaseMultiPartParser)
+    
+    @swagger_auto_schema(
+        operation_summary='대회 신청',
+        operation_description='대회 신청 API',
+        manual_parameters=[
+            openapi.Parameter('partner_id', openapi.IN_FORM, type=openapi.TYPE_INTEGER, description='Partner ID(복식일 경우에만)', required=False),
+            openapi.Parameter('code', openapi.IN_FORM, type=openapi.TYPE_STRING, description='Competition Code', required=True),
+        ],
+        responses={
+            201: 'Created',
+            400: 'Invalid input',
+            404: 'Not found',
+        }
+    )
     
     def post(self, request, pk):
         
@@ -361,6 +396,11 @@ class CompetitionApplyResultView(APIView):
 
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        operation_summary='대회 신청 결과 조회',
+        operation_description='대회 신청 결과 조회. id값은 대회id 입니다.'
+    )
+    
     def get(self, request, pk):
         
         user = request.user
@@ -424,6 +464,18 @@ class CompetitionCancelView(APIView):
     대회 신청 취소
     """
     permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+    operation_summary='대회 신청 취소',
+    operation_description='대회 신청 취소 API. URL의 id는 ApplicantInfo의 ID를 의미합니다.',
+    responses={
+        200: 'OK: 사용자 취소 완료',
+        401: 'Unautorized: 자격 인증이 되지 않았습니다.',
+        403: 'FOBIDDEN: 이 작업을 수행할 권한이 없습니다.',
+        404: 'Not Found: 신청정보를 찾지 못했습니다.',
+        409: 'CONFLICT: 이미 취소 처리된 신청입니다.'
+    }
+    )
 
     def put(self, request, pk):
         # 신청 정보 변수 생성
@@ -491,6 +543,19 @@ class MyCompetitionListView(APIView):
     """
 
     permission_classes=[IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_summary='나의 대회 목록 조회',
+        operation_description='로그인한 사용자의 대회 목록을 조회합니다.',
+        manual_parameters=[
+            openapi.Parameter('count', openapi.IN_QUERY, description='가져올 대회 수', type=openapi.TYPE_INTEGER, required=False),
+            openapi.Parameter('status', openapi.IN_QUERY, description='대회 상태 (before, during, ended, noapply)', type=openapi.TYPE_STRING, required=False),
+        ],
+        responses={
+        200: openapi.Response(
+            description='OK')
+        }
+    )
 
     def get(self, request):
 
@@ -500,7 +565,7 @@ class MyCompetitionListView(APIView):
 
         # 쿼리 파라미터로 count, status 받기
         competition_count = request.query_params.get('count', None)
-        comeptition_status = request.query_params.get('status', None)
+        competition_status = request.query_params.get('status', None)
 
         # count type (str -> int)
         if competition_count is not None:
@@ -546,28 +611,28 @@ class MyCompetitionListView(APIView):
         not_apply_competitions = MyCompetitionSerializer(not_apply_list, many=True, context={'request': request}).data
 
         # 진행 전인 대회
-        if comeptition_status == 'before':
+        if competition_status == 'before':
             competition_list = before_my_competitions[:competition_count] if competition_count else before_my_competitions
 
             if not competition_list:
                 return Response({'detail':'진행 전인 대회가 없습니다.'}, status=status.HTTP_200_OK)
 
         # 진행 중인 대회
-        elif comeptition_status == 'during':
+        elif competition_status == 'during':
             competition_list = during_my_competitions[:competition_count] if competition_count else during_my_competitions
 
             if not competition_list:
                 return Response({'detail':'진행 중인 대회가 없습니다.'},status=status.HTTP_200_OK)
 
         # 종료한 대회
-        elif comeptition_status == 'ended':
+        elif competition_status == 'ended':
             competition_list = ended_my_competitions[:competition_count] if competition_count else ended_my_competitions
 
             if not competition_list:
                 return Response({'detail':'종료한 대회가 없습니다.'}, status=status.HTTP_200_OK)
 
         # 참가 신청하지 않은 대회
-        elif comeptition_status == 'noapply':
+        elif competition_status == 'noapply':
             competition_list = not_apply_competitions[:competition_count] if competition_count else not_apply_competitions
                 
             if not competition_list:
@@ -595,6 +660,16 @@ class CompetitionResultView(APIView):
     대회 결과 조회
     """
     permission_classes = [AllowAny]
+    
+    @swagger_auto_schema(
+        operation_summary='대회 결과(우승, 준우승) 조회',
+        operation_description='대회 결과(우승, 준우승) 조회 API',
+        responses={
+            200: CompetitionResultSerializer(many=True), #딸깍
+            404: 'Not Found: 대회를 찾을 수 없습니다.',
+            404: 'Not Found: 대회 결과를 찾을 수 없습니다..',
+        }
+    )
     
     def get(self, request, pk):
         try:

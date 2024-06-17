@@ -26,6 +26,7 @@ class CompetitionListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Competition
         fields = ['id', 'name', 'start_date', 'end_date', 'match_type_details', 'tier', 'location', 'image_url', 'status', 'waiting_count']
+        ref_name = "CompetitionList"
         
     def get_image_url(self, obj):
         if obj.image_url:
@@ -137,16 +138,6 @@ class CompetitionDetailInfoSerializer(serializers.ModelSerializer):
         if current_applicants_count - obj.max_participants < 0:
             return 0
         return current_applicants_count - obj.max_participants
-
-
-
-## 대회 간단정보
-class CompetitionApplyInfoSerializer(serializers.ModelSerializer):
-    match_type_details = MatchTypeSerializer(source='match_type', read_only=True)
-    
-    class Meta:
-        model = Competition
-        fields = ['id', 'name', 'start_date', 'match_type_details', 'total_rounds', 'total_sets', 'location', 'address', 'code' ]
 
 
 

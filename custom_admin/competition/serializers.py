@@ -23,6 +23,7 @@ class CompetitionListSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'tier', 'match_type', 'start_date', 'status', 'competition_type',
                   'total_rounds', 'location', 'phone', 'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at', 'status')
+        ref_name = "CustomAdminCompetitionList"
 
     def get_tier(self, obj):
         return {'id': obj.tier.id, 'name': obj.tier.name} if obj.tier else None
