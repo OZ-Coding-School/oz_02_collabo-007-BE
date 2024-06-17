@@ -3,8 +3,6 @@ from .models import ApplicantInfo
 from applicant.serializers import ApplicantSerializer
 class ApplicantInfoSerializer(serializers.ModelSerializer):
     applicants = ApplicantSerializer(many=True, read_only=True)
-    
-
 
     class Meta:
         model = ApplicantInfo
