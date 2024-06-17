@@ -20,7 +20,9 @@ from .serializers import (CreateUserSerializer,
                           ChangePasswordSerializer,
                           MyProfileRankingSerializer,
                           MyProfileTeamRankingSerializer,
-                          MainRankingSerializer
+                          MainRankingSerializer,
+                          UserRankingSearchSerializer,
+                          UserTeamRankingSearchSerializer
                           )
 
 from django.utils import timezone
@@ -248,11 +250,11 @@ class ChangePasswordView(APIView):
 
 class UserDetailView(APIView):
     """
-    유저 상세 정보를 제공하는 API
+    특정 유저 상세 정보를 제공하는 API
     """
     @swagger_auto_schema(
-        operation_summary='유저 상세 정보 조회',
-        operation_description='유저 상세 정보를 제공하는 API',
+        operation_summary='특정 유저 상세 정보 조회',
+        operation_description='특정 유저 상세 정보를 제공하는 API',
     )
     def get(self, request, pk):
         try:
@@ -492,3 +494,134 @@ class SetMainRankingView(APIView):
         request.user.save()
 
         return Response({"detail": f"메인 랭킹이 '{main_ranking}'으로 업데이트되었습니다."}, status=status.HTTP_200_OK)
+    
+    
+    
+    
+
+# 유저별 랭킹 조회 API
+class UserRankingSearchView(APIView):
+    
+    @swagger_auto_schema(
+    operation_summary='특정 유저 랭킹을 조회하는 API',
+    operation_description='특정 유저의 단식/복식/팀 랭킹을 조회합니다.',
+    responses={
+        200: openapi.Response('', openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'singleRanking': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'userId': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'userName': openapi.Schema(type=openapi.TYPE_STRING),
+                            'ranking': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'score': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        }
+                    )
+                ),
+                'doubleRanking': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'userId': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'userName': openapi.Schema(type=openapi.TYPE_STRING),
+                            'ranking': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'score': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        }
+                    )
+                ),
+                'teamRanking': openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'teamId': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'teamName': openapi.Schema(type=openapi.TYPE_STRING),
+                        'ranking': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'score': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    }
+                ),
+            }
+        ))
+    }
+)
+    
+    def get(self, request, user_id, *args, **kwargs):
+        current_time = timezone.now()
+        
+        user = User.objects.get(id=user_id)
+        
+        user_tiers = user.tiers.all()
+        
+        # 사용자가 속한 모든 매치 타입을 가져옴
+        user_match_types = [tier.match_type for tier in user_tiers]
+        
+        # 매치 타입별 쿼리셋 생성
+        single_queryset = Point.objects.filter(
+            expired_date__gte=current_time,
+            match_type__type='single',
+            match_type__in=user_match_types,
+        ).values('user', 'tier').annotate(total_points=Sum('points')).order_by('-total_points')
+        
+        double_queryset = Point.objects.filter(
+            expired_date__gte=current_time,
+            match_type__type='double',
+            match_type__in=user_match_types,
+        ).values('user', 'tier').annotate(total_points=Sum('points')).order_by('-total_points')
+        
+        team_queryset = Point.objects.filter(
+            expired_date__gte=current_time,
+            match_type__type='team',
+        ).values('team').annotate(total_points=Sum('points')).order_by('-total_points')
+
+        if not single_queryset.exists() and not double_queryset.exists() and not team_queryset.exists():
+            return Response({"detail": "랭킹 정보를 찾을 수 없습니다."}, status=status.HTTP_200_OK)
+
+        # 단식 순위 계산 및 필터링
+        single_ranked_queryset = []
+        for idx, obj in enumerate(single_queryset, start=1):
+            user_obj = User.objects.get(id=obj['user'])
+            tier_obj = Tier.objects.get(id=obj['tier'])
+            obj['user'] = user_obj
+            obj['tier'] = tier_obj
+            obj['rank'] = idx
+            if user_obj == user:
+                single_ranked_queryset.append(obj)
+        print(single_ranked_queryset)
+
+        # 복식 순위 계산 및 필터링
+        double_ranked_queryset = []
+        for idx, obj in enumerate(double_queryset, start=1):
+            user_obj = User.objects.get(id=obj['user'])
+            tier_obj = Tier.objects.get(id=obj['tier'])
+            obj['user'] = user_obj
+            obj['tier'] = tier_obj
+            obj['rank'] = idx
+            if user_obj == user:
+                double_ranked_queryset.append(obj)
+
+        # 팀 순위 계산 및 필터링
+        team_ranked_queryset = []
+        for idx, obj in enumerate(team_queryset, start=1):
+            team_obj = Team.objects.get(id=obj['team'])
+            obj['team'] = team_obj
+            obj['rank'] = idx
+            if team_obj == user.team:
+                team_ranked_queryset.append(obj)
+        print(team_ranked_queryset)   
+        
+
+        # Serializer 선언
+        single_ranking_serializer = UserRankingSearchSerializer(single_ranked_queryset, many=True, context={"request": request})
+        double_ranking_serializer = UserRankingSearchSerializer(double_ranked_queryset, many=True, context={"request": request})
+        my_team_ranking_serializer = UserTeamRankingSearchSerializer(team_ranked_queryset, many=True, context={"request": request})
+
+        # 응답 데이터 구성
+        response_data = {
+            'single': single_ranking_serializer.data if single_ranked_queryset else None,
+            'double': double_ranking_serializer.data if double_ranked_queryset else None,
+            'team': my_team_ranking_serializer.data if my_team_ranking_serializer else None
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
