@@ -588,7 +588,7 @@ class UserRankingSearchView(APIView):
             obj['rank'] = idx
             if user_obj == user:
                 single_ranked_queryset.append(obj)
-        print(single_ranked_queryset)
+    
 
         # 복식 순위 계산 및 필터링
         double_ranked_queryset = []
@@ -609,7 +609,7 @@ class UserRankingSearchView(APIView):
             obj['rank'] = idx
             if team_obj == user.team:
                 team_ranked_queryset.append(obj)
-        print(team_ranked_queryset)   
+  
         
 
         # Serializer 선언
