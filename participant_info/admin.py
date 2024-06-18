@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ParticipantInfo
+from .models import ParticipantInfo, TeamParticipantInfo
 from participant.models import Participant
 
 class ParticipantInfoAdmin(admin.ModelAdmin):
@@ -25,3 +25,10 @@ class ParticipantInfoAdmin(admin.ModelAdmin):
             
     second_participant_name.short_description = 'partner name'
 admin.site.register(ParticipantInfo, ParticipantInfoAdmin)
+
+
+class TeamParticipantInfoAdmin(admin.ModelAdmin):
+    list_display = ['competition', 'team_applicant_info', 'team']
+    search_fields = ['competition__name', 'team__name']
+    
+admin.site.register(TeamParticipantInfo, TeamParticipantInfoAdmin)

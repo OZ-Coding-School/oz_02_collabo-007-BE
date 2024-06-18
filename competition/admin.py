@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Competition, CompetitionResult
+from .models import Competition, CompetitionResult, CompetitionTeamMatch
 
 
 
@@ -13,3 +13,11 @@ class CompetitionResultAdmin(admin.ModelAdmin):
 
 # CompetitionResult 모델 등록
 admin.site.register(CompetitionResult, CompetitionResultAdmin)
+
+
+class CompetitionTeamMatchAdmin(admin.ModelAdmin):
+    list_display = ['id', 'competition', 'match_type', 'tier', 'game_number']
+    search_fields = ['competition__name', 'match_type__name', 'tier__name']
+    list_filter = ['competition', 'match_type', 'tier']
+
+admin.site.register(CompetitionTeamMatch, CompetitionTeamMatchAdmin)
