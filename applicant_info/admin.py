@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ApplicantInfo
+from .models import ApplicantInfo, TeamApplicantInfo
 from applicant.models import Applicant
 
 
@@ -25,10 +25,11 @@ class ApplicantInfoAdmin(admin.ModelAdmin):
             return applicant.user.username
             
     second_applicant_name.short_description = 'partner name'
-        
-    
-    
-
-    
     
 admin.site.register(ApplicantInfo, ApplicantInfoAdmin)
+
+class TeamApplicantInfoAdmin(admin.ModelAdmin):
+    list_display = ['id', 'competition', 'team']
+    search_fields = ['competition__name', 'team__name']
+    
+admin.site.register(TeamApplicantInfo, TeamApplicantInfoAdmin)
