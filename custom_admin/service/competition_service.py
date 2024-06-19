@@ -94,7 +94,6 @@ class CompetitionService:
         대회의 팀 경기를 생성하는 메서드.
         """
         with transaction.atomic():
-            print("match_data: ", match_data)
             team_match = TeamMatch.objects.create(**match_data)
             a_team_participant_info = team_match.a_team
             b_team_participant_info = team_match.b_team
@@ -115,7 +114,7 @@ class CompetitionService:
                         'team_match': team_match,
                         'team_match_game_number': team_match_info.game_number,
                         'total_sets': competition.total_sets,
-                        'description': f'{a_team_participant_info.team.name}vs{b_team_participant_info.team.name} {team_match_info.game_number}경기'
+                        'description': f'{team_match_info.game_number}게임'
                     })
                 else:
                     raise ValueError('팀 경기 참가자 정보가 일치하지 않습니다.')
@@ -132,6 +131,48 @@ class CompetitionService:
             match.save()
 
         return match
+
+    def edit_team_match(self, team_match: TeamMatch, match_data):
+        """
+        대회의 팀 경기를 수정하는 메서드.
+        """
+        with transaction.atomic():
+            for attr, value in match_data.items():
+                setattr(team_match, attr, value)
+            team_match.save()
+
+            a_team_participant_info = team_match.a_team
+            b_team_participant_info = team_match.b_team
+            competition = team_match.competition
+            team_match_list = competition.team_match_list.all()
+            for team_match_info in team_match_list:
+                a_match_participant = a_team_participant_info.team_participant_list.filter(
+                    team_participant_game_number=team_match_info.game_number
+                ).first()
+                b_match_participant = b_team_participant_info.team_participant_list.filter(
+                    team_participant_game_number=team_match_info.game_number
+                ).first()
+                if a_match_participant and b_match_participant:
+                    match = Match.objects.filter(
+                        team_match=team_match,
+                        team_match_game_number=team_match_info.game_number
+                    ).first()
+                    if match:
+                        self.edit_match(match, {
+                            'competition': competition,
+                            'a_team': a_match_participant,
+                            'b_team': b_match_participant,
+                            'team_match': team_match,
+                            'team_match_game_number': team_match_info.game_number,
+                            'total_sets': competition.total_sets,
+                            'description': f'{team_match_info.game_number}게임'
+                        })
+                    else:
+                        raise ValueError('팀 경기 정보가 일치하지 않습니다.')
+                else:
+                    raise ValueError('팀 경기 참가자 정보가 일치하지 않습니다.')
+
+        return team_match
 
     def update_or_create_match_result(self, match_id, match_data):
         """

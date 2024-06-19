@@ -29,7 +29,7 @@ class Match(BaseMatch):
                                related_name='match_b_team_set', blank=True, null=True)
     total_sets = models.IntegerField(blank=True, null=True)
     team_match = models.ForeignKey(
-        'TeamMatch', models.DO_NOTHING, blank=True, null=True)
+        'TeamMatch', models.DO_NOTHING, blank=True, null=True, related_name='matches')
     team_match_game_number = models.IntegerField(
         blank=True, null=True, help_text="팀 게임 내 경기 번호")
 

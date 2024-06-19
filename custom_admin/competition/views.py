@@ -4,13 +4,13 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from applicant_info.models import ApplicantInfo, TeamApplicantInfo
 from competition.models import Competition, CompetitionTeamMatch
-from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchResultSerializer, MatchSerializer, ParticipantInfoSerializer, TeamApplicantInfoSerializer, TeamCompetitionApplySerializer, TeamCompetitionListSerializer, TeamMatchSerializer, TeamParticipantInfoSerializer
+from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchResultSerializer, MatchSerializer, ParticipantInfoSerializer, TeamApplicantInfoSerializer, TeamCompetitionApplySerializer, TeamCompetitionListSerializer, TeamMatchResultSerializer, TeamMatchSerializer, TeamParticipantInfoSerializer
 from custom_admin.pagination import StandardResultsSetPagination
 from custom_admin.service.competition_service import CompetitionService
 from custom_admin.service.image_service import ImageService
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Prefetch, Exists, OuterRef
-from match.models import Match
+from match.models import Match, TeamMatch
 from participant.models import Participant
 from participant_info.models import ParticipantInfo, TeamParticipantInfo
 from payments.models import Payment
@@ -496,10 +496,8 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
         if request.method == 'GET':
             competition = self.get_object()
-            matches = Match.objects.filter(competition=competition).select_related(
-                'a_team', 'b_team'
-            ).prefetch_related(
-                'a_team__participants', 'b_team__participants', 'a_team__participants__user', 'b_team__participants__user'
+            matches = TeamMatch.objects.filter(competition=competition).select_related(
+                'a_team', 'b_team', 'a_team__team', 'b_team__team'
             ).order_by('match_round', 'match_number', 'created_at')
 
             serializer = TeamMatchSerializer(matches, many=True)
@@ -556,6 +554,65 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             ).get(pk=match_id)
 
             serializer = MatchResultSerializer(match)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        method='get',
+        operation_summary='팀 대회 경기 상세 조회',
+        operation_description='팀 대회 경기 상세 정보를 조회합니다.',
+        responses={
+            200: MatchResultSerializer,
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @swagger_auto_schema(
+        method='put',
+        operation_summary='팀 대회 경기 정보 수정',
+        operation_description='팀 대회 경기 정보를 수정합니다.',
+        responses={
+            200: 'Match information updated successfully',
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['get', 'put'], url_path=r'team/matches/(?P<match_id>\d+)', url_name='team-competition-match')
+    def match(self, request, *args, **kwargs):
+        match_id = kwargs.get('match_id')
+        if request.method == 'PUT':
+            try:
+                match = TeamMatch.objects.get(pk=match_id)
+                serializer = TeamMatchResultSerializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                if serializer.validated_data['a_team'] == serializer.validated_data['b_team']:
+                    return Response('동일한 팀은 경기를 할 수 없습니다.', status=status.HTTP_400_BAD_REQUEST)
+
+                result = self.competition_service.edit_team_match(
+                    team_match=match, match_data=serializer.validated_data)
+                return Response('경기 정보를 수정했습니다.', status=status.HTTP_200_OK)
+
+            except Exception as e:
+                return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        if request.method == 'GET':
+            match = TeamMatch.objects.select_related(
+                'a_team', 'b_team'
+            ).prefetch_related(
+                Prefetch('matches', queryset=Match.objects.select_related(
+                    'a_team', 'b_team'
+                ).prefetch_related(
+                    Prefetch('a_team__participants',
+                             queryset=Participant.objects.select_related('user')),
+                    Prefetch('b_team__participants',
+                             queryset=Participant.objects.select_related('user')),
+                    'set_list'
+                )
+                )
+            ).get(pk=match_id)
+
+            serializer = TeamMatchResultSerializer(match)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
