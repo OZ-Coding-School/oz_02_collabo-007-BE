@@ -39,7 +39,7 @@ class Match(BaseMatch):
 
 
 class TeamMatch(BaseMatch):
-    winner_id = models.ForeignKey(
+    winner = models.ForeignKey(
         TeamParticipantInfo, models.DO_NOTHING, related_name='winner_team', blank=True, null=True)
     a_team = models.ForeignKey(TeamParticipantInfo, models.DO_NOTHING,
                                related_name='a_team', blank=True, null=True)
@@ -47,6 +47,8 @@ class TeamMatch(BaseMatch):
                                related_name='b_team', blank=True, null=True)
     competition = models.ForeignKey(
         Competition, models.DO_NOTHING, related_name='team_matches')
+    a_team_score = models.IntegerField(blank=True, null=True)
+    b_team_score = models.IntegerField(blank=True, null=True)
 
     class Meta:
         db_table = 'team_match'

@@ -10,7 +10,7 @@ from matchtype.models import MatchType
 from participant.models import Participant
 from participant_info.models import ParticipantInfo, TeamParticipantInfo
 from payments.models import Payment, Refund
-from match.models import Match
+from match.models import Match, TeamMatch
 from point.models import Point
 from team.models import Team
 from tier.models import Tier
@@ -88,6 +88,39 @@ class CompetitionService:
             match = Match.objects.create(**match_data)
 
         return match
+
+    def create_team_match(self, match_data):
+        """
+        대회의 팀 경기를 생성하는 메서드.
+        """
+        with transaction.atomic():
+            print("match_data: ", match_data)
+            team_match = TeamMatch.objects.create(**match_data)
+            a_team_participant_info = team_match.a_team
+            b_team_participant_info = team_match.b_team
+            competition = team_match.competition
+            team_match_list = competition.team_match_list.all()
+            for team_match_info in team_match_list:
+                a_match_participant = a_team_participant_info.team_participant_list.filter(
+                    team_participant_game_number=team_match_info.game_number
+                ).first()
+                b_match_participant = b_team_participant_info.team_participant_list.filter(
+                    team_participant_game_number=team_match_info.game_number
+                ).first()
+                if a_match_participant and b_match_participant:
+                    match = self.create_match({
+                        'competition': competition,
+                        'a_team': a_match_participant,
+                        'b_team': b_match_participant,
+                        'team_match': team_match,
+                        'team_match_game_number': team_match_info.game_number,
+                        'total_sets': competition.total_sets,
+                        'description': f'{a_team_participant_info.team.name}vs{b_team_participant_info.team.name} {team_match_info.game_number}경기'
+                    })
+                else:
+                    raise ValueError('팀 경기 참가자 정보가 일치하지 않습니다.')
+
+        return team_match
 
     def edit_match(self, match: Match, match_data):
         """

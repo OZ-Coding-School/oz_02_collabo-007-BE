@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from applicant_info.models import ApplicantInfo, TeamApplicantInfo
 from competition.models import Competition, CompetitionTeamMatch
-from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchResultSerializer, MatchSerializer, ParticipantInfoSerializer, TeamApplicantInfoSerializer, TeamCompetitionApplySerializer, TeamCompetitionListSerializer, TeamParticipantInfoSerializer
+from custom_admin.competition.serializers import ApplicantInfoSerializer, CompetitionListSerializer, CompetitionSerializer, MatchResultSerializer, MatchSerializer, ParticipantInfoSerializer, TeamApplicantInfoSerializer, TeamCompetitionApplySerializer, TeamCompetitionListSerializer, TeamMatchSerializer, TeamParticipantInfoSerializer
 from custom_admin.pagination import StandardResultsSetPagination
 from custom_admin.service.competition_service import CompetitionService
 from custom_admin.service.image_service import ImageService
@@ -391,6 +391,11 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             competition=competition
         ).select_related(
             'team'
+        ).prefetch_related(
+            Prefetch('team_participant_list', queryset=ParticipantInfo.objects.prefetch_related(
+                'participants__user'
+            )
+            )
         )
 
         serializer = TeamParticipantInfoSerializer(
@@ -447,6 +452,57 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             ).order_by('match_round', 'match_number', 'created_at')
 
             serializer = MatchSerializer(matches, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        method='get',
+        operation_summary='팀 대회 경기 목록 조회',
+        operation_description='팀 대회 경기 목록을 조회합니다.',
+        responses={
+            200: TeamMatchSerializer(many=True),
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @swagger_auto_schema(
+        method='post',
+        operation_summary='팀 대회 경기 생성',
+        operation_description='팀 대회 경기를 생성합니다.',
+        responses={
+            201: TeamMatchSerializer,
+            400: 'Bad Request',
+            401: 'Authentication Error',
+            403: 'Permission Denied',
+            404: 'Not Found'
+        }
+    )
+    @action(detail=True, methods=['get', 'post'], url_path='team/matches', url_name='team-competition-matches')
+    def team_matches(self, request, pk=None):
+        if request.method == 'POST':
+            try:
+                competition = self.get_object()
+                request.data['competition'] = competition.id
+                serializer = TeamMatchSerializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                if serializer.validated_data['a_team'] == serializer.validated_data['b_team']:
+                    raise Exception('동일한 팀은 경기를 할 수 없습니다.')
+
+                result = self.competition_service.create_team_match(
+                    serializer.validated_data)
+                return Response(TeamMatchSerializer(result).data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.method == 'GET':
+            competition = self.get_object()
+            matches = Match.objects.filter(competition=competition).select_related(
+                'a_team', 'b_team'
+            ).prefetch_related(
+                'a_team__participants', 'b_team__participants', 'a_team__participants__user', 'b_team__participants__user'
+            ).order_by('match_round', 'match_number', 'created_at')
+
+            serializer = TeamMatchSerializer(matches, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
