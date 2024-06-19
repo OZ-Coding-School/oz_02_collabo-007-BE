@@ -158,6 +158,7 @@ class UpdateMyProfileSerializer(serializers.ModelSerializer):
         # 빈 문자열 - 프로필 편집에서 유저가 기존 클럽을 삭제한 경우 (유저의 클럽id를 Null으로 변경)
         if club_data in ['']:  
             instance.club = None
+            instance.team = None
         
         # request 폼데이터에 클럽 데이터가 제공되지 않은 경우 (기존 클럽 유지)
         elif club_data is None: 
