@@ -138,6 +138,7 @@ class MatchRecordSerializer(serializers.ModelSerializer):
         user_matches = self.get_user_matches(obj)
         matches = sum(len(match['matches']) for match in user_matches)
         wins = sum(1 for match in user_matches for match_data in match['matches'] if match_data.get('winner_user') and user_id in [user['id'] for user in match_data['winner_user']])
-        losses = matches - wins
+        unstarted_game = sum(1 for match in user_matches for match_data in match['matches'] if not match_data.get('winner_user'))
+        losses = matches - wins - unstarted_game
         return {'wins': wins, 'losses': losses}
     
