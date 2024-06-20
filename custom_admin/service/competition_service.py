@@ -196,6 +196,45 @@ class CompetitionService:
 
         return match
 
+    def update_or_create_team_match_result(self, match_id, match_data):
+        """
+        팀 경기 결과를 입력하거나 수정하는 메서드.
+        """
+        with transaction.atomic():
+            team_match = get_object_or_404(TeamMatch, id=match_id)
+
+            a_team_score = 0
+            b_team_score = 0
+            for match in match_data['matches']:
+                match_of_team = team_match.matches.filter(
+                    team_match_game_number=match['team_match_game_number']
+                ).first()
+                if match_of_team is None:
+                    raise ValueError('팀 경기 정보가 일치하지 않습니다.')
+
+                match_of_team = self.update_or_create_match_result(
+                    match_of_team.id, match
+                )
+                if match_of_team.winner_id == match_of_team.a_team:
+                    a_team_score += 1
+                elif match_of_team.winner_id == match_of_team.b_team:
+                    b_team_score += 1
+
+            winner = match_data.get('winner')
+            if winner == 'a':
+                team_match.winner = team_match.a_team
+            if winner == 'b':
+                team_match.winner = team_match.b_team
+            if winner is None or winner == '':
+                team_match.winner = None
+
+            team_match.a_team_score = a_team_score
+            team_match.b_team_score = b_team_score
+
+            team_match.save()
+
+        return team_match
+
     def add_points_to_match(self, match_id, points_data):
         """
         승점을 추가하는 메서드.

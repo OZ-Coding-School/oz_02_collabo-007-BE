@@ -325,7 +325,7 @@ class MatchResultSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Match
-        fields = ('id', 'match_round', 'match_number', 'court_number', 'description', 'competition',
+        fields = ('id', 'match_round', 'match_number', 'court_number', 'description', 'competition', 'team_match_game_number',
                   'winner_id', 'a_team', 'b_team', 'sets', 'total_sets', 'a_team_id', 'b_team_id', 'winner', 'has_point')
         read_only_fields = ['id']
         extra_kwargs = {
