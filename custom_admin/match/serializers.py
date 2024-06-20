@@ -38,9 +38,16 @@ class PointEntrySerializer(serializers.Serializer):
     points = serializers.IntegerField(required=True)
     expired_date = serializers.DateTimeField(required=True)
     user_id = serializers.IntegerField(required=True)
+    tier_id = serializers.IntegerField(required=True)
+    match_type_id = serializers.IntegerField(required=True)
 
 
 class AddPointsSerializer(serializers.Serializer):
     points_array = PointEntrySerializer(many=True)
-    tier_id = serializers.IntegerField(required=True)
-    match_type_id = serializers.IntegerField(required=True)
+
+
+class AddTeamPointsSerializer(serializers.Serializer):
+    matches = AddPointsSerializer(many=True)
+    team_id = serializers.IntegerField(required=True)
+    points = serializers.IntegerField(required=True)
+    expired_date = serializers.DateTimeField(required=True)

@@ -580,7 +580,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         }
     )
     @action(detail=True, methods=['get', 'put'], url_path=r'team/matches/(?P<match_id>\d+)', url_name='team-competition-match')
-    def match(self, request, *args, **kwargs):
+    def team_match(self, request, *args, **kwargs):
         match_id = kwargs.get('match_id')
         if request.method == 'PUT':
             try:
