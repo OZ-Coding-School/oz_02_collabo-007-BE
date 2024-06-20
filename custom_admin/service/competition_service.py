@@ -10,7 +10,7 @@ from matchtype.models import MatchType
 from participant.models import Participant
 from participant_info.models import ParticipantInfo, TeamParticipantInfo
 from payments.models import Payment, Refund
-from match.models import Match
+from match.models import Match, TeamMatch
 from point.models import Point
 from team.models import Team
 from tier.models import Tier
@@ -89,6 +89,38 @@ class CompetitionService:
 
         return match
 
+    def create_team_match(self, match_data):
+        """
+        대회의 팀 경기를 생성하는 메서드.
+        """
+        with transaction.atomic():
+            team_match = TeamMatch.objects.create(**match_data)
+            a_team_participant_info = team_match.a_team
+            b_team_participant_info = team_match.b_team
+            competition = team_match.competition
+            team_match_list = competition.team_match_list.all()
+            for team_match_info in team_match_list:
+                a_match_participant = a_team_participant_info.team_participant_list.filter(
+                    team_participant_game_number=team_match_info.game_number
+                ).first()
+                b_match_participant = b_team_participant_info.team_participant_list.filter(
+                    team_participant_game_number=team_match_info.game_number
+                ).first()
+                if a_match_participant and b_match_participant:
+                    match = self.create_match({
+                        'competition': competition,
+                        'a_team': a_match_participant,
+                        'b_team': b_match_participant,
+                        'team_match': team_match,
+                        'team_match_game_number': team_match_info.game_number,
+                        'total_sets': competition.total_sets,
+                        'description': f'{team_match_info.game_number}게임'
+                    })
+                else:
+                    raise ValueError('팀 경기 참가자 정보가 일치하지 않습니다.')
+
+        return team_match
+
     def edit_match(self, match: Match, match_data):
         """
         대회의 경기를 수정하는 메서드.
@@ -99,6 +131,48 @@ class CompetitionService:
             match.save()
 
         return match
+
+    def edit_team_match(self, team_match: TeamMatch, match_data):
+        """
+        대회의 팀 경기를 수정하는 메서드.
+        """
+        with transaction.atomic():
+            for attr, value in match_data.items():
+                setattr(team_match, attr, value)
+            team_match.save()
+
+            a_team_participant_info = team_match.a_team
+            b_team_participant_info = team_match.b_team
+            competition = team_match.competition
+            team_match_list = competition.team_match_list.all()
+            for team_match_info in team_match_list:
+                a_match_participant = a_team_participant_info.team_participant_list.filter(
+                    team_participant_game_number=team_match_info.game_number
+                ).first()
+                b_match_participant = b_team_participant_info.team_participant_list.filter(
+                    team_participant_game_number=team_match_info.game_number
+                ).first()
+                if a_match_participant and b_match_participant:
+                    match = Match.objects.filter(
+                        team_match=team_match,
+                        team_match_game_number=team_match_info.game_number
+                    ).first()
+                    if match:
+                        self.edit_match(match, {
+                            'competition': competition,
+                            'a_team': a_match_participant,
+                            'b_team': b_match_participant,
+                            'team_match': team_match,
+                            'team_match_game_number': team_match_info.game_number,
+                            'total_sets': competition.total_sets,
+                            'description': f'{team_match_info.game_number}게임'
+                        })
+                    else:
+                        raise ValueError('팀 경기 정보가 일치하지 않습니다.')
+                else:
+                    raise ValueError('팀 경기 참가자 정보가 일치하지 않습니다.')
+
+        return team_match
 
     def update_or_create_match_result(self, match_id, match_data):
         """
@@ -122,6 +196,45 @@ class CompetitionService:
 
         return match
 
+    def update_or_create_team_match_result(self, match_id, match_data):
+        """
+        팀 경기 결과를 입력하거나 수정하는 메서드.
+        """
+        with transaction.atomic():
+            team_match = get_object_or_404(TeamMatch, id=match_id)
+
+            a_team_score = 0
+            b_team_score = 0
+            for match in match_data['matches']:
+                match_of_team = team_match.matches.filter(
+                    team_match_game_number=match['team_match_game_number']
+                ).first()
+                if match_of_team is None:
+                    raise ValueError('팀 경기 정보가 일치하지 않습니다.')
+
+                match_of_team = self.update_or_create_match_result(
+                    match_of_team.id, match
+                )
+                if match_of_team.winner_id == match_of_team.a_team:
+                    a_team_score += 1
+                elif match_of_team.winner_id == match_of_team.b_team:
+                    b_team_score += 1
+
+            winner = match_data.get('winner')
+            if winner == 'a':
+                team_match.winner = team_match.a_team
+            if winner == 'b':
+                team_match.winner = team_match.b_team
+            if winner is None or winner == '':
+                team_match.winner = None
+
+            team_match.a_team_score = a_team_score
+            team_match.b_team_score = b_team_score
+
+            team_match.save()
+
+        return team_match
+
     def add_points_to_match(self, match_id, points_data):
         """
         승점을 추가하는 메서드.
@@ -129,36 +242,54 @@ class CompetitionService:
         Args:
             match_id: Match 객체의 id
             points_data: AddPointsSerializer로 직렬화된 데이터
-            e.g. {
-                'points_array': [
-                    {
-                        'points': 10,
-                        'expired_date': '2021-12-31',
-                        'user_id': 1
-                    },
-                    {
-                        'points': 20,
-                        'expired_date': '2021-12-31',
-                        'user_id': 2
-                    }
-                ],
-                'tier_id': 1,
-                'match_type_id': 1
-            }
         """
         with transaction.atomic():
             match = get_object_or_404(Match, id=match_id)
 
-            tier = self._get_object_or_404(Tier, pk=points_data.get('tier_id'))
-            match_type = self._get_object_or_404(
-                MatchType, pk=points_data.get('match_type_id'))
-
             points_array = points_data['points_array']
-
             for point_entry in points_array:
                 user = self._get_object_or_404(
                     CustomUser, pk=point_entry.get('user_id'))
+                tier = self._get_object_or_404(
+                    Tier, pk=point_entry.get('tier_id'))
+                match_type = self._get_object_or_404(
+                    MatchType, pk=point_entry.get('match_type_id'))
+
                 self._create_point(match, user, point_entry, tier, match_type)
+
+        return None
+
+    def add_points_to_team_match(self, match_id, team_points_data):
+        """
+        팀 게임 승점을 추가하는 메서드.
+
+        Args:
+            match_id: TeamMatch 객체의 id
+            team_points_data: AddTeamPointsSerializer로 직렬화된 데이터
+        """
+        with transaction.atomic():
+            team_match = get_object_or_404(TeamMatch, id=match_id)
+
+            for index, match in enumerate(team_points_data['matches']):
+                match_of_team = team_match.matches.filter(
+                    team_match_game_number=index + 1
+                ).first()
+                if match_of_team is None:
+                    raise ValueError('팀 경기 정보가 일치하지 않습니다.')
+
+                self.add_points_to_match(match_of_team.id, match)
+
+            match_type = MatchType.objects.get(
+                type='team',
+            )
+
+            Point.objects.create(
+                points=team_points_data['points'],
+                expired_date=team_points_data.get('expired_date'),
+                team_match=team_match,
+                match_type=match_type,
+                team=team_match.winner.team
+            )
 
         return None
 

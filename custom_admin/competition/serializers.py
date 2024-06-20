@@ -10,7 +10,7 @@ from point.models import Point
 from team.models import Team
 from tier.models import Tier
 from users.models import CustomUser
-from match.models import Match
+from match.models import Match, TeamMatch
 from set.models import Set
 
 
@@ -207,23 +207,35 @@ class ParticipantInfoSerializer(serializers.ModelSerializer):
                             'created_at', 'updated_at')
 
 
-class TeamParticipantInfoSerializer(serializers.ModelSerializer):
-    team = CompetitionTeamSerializer(read_only=True)
-
-    class Meta:
-        model = TeamParticipantInfo
-        fields = ('id', 'team', 'competition',
-                  'created_at', 'updated_at')
-        read_only_fields = ('id', 'competition', 'team',
-                            'created_at', 'updated_at')
-
-
 class ParticipantInfoSimpleSerializer(serializers.ModelSerializer):
     participants = ParticipantSerializer(many=True, read_only=True)
 
     class Meta:
         model = ParticipantInfo
         fields = ('id', 'participants')
+
+
+class ParticipantInfoOfTeamSerializer(serializers.ModelSerializer):
+    participants = ParticipantSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ParticipantInfo
+        fields = ('id', 'participants', 'team_participant_game_number')
+        read_only_fields = ('id', 'competition',
+                            'team_participant_game_number')
+
+
+class TeamParticipantInfoSerializer(serializers.ModelSerializer):
+    team = CompetitionTeamSerializer(read_only=True)
+    team_participant_list = ParticipantInfoOfTeamSerializer(
+        many=True, read_only=True)
+
+    class Meta:
+        model = TeamParticipantInfo
+        fields = ('id', 'team', 'competition', 'team_participant_list',
+                  'created_at', 'updated_at')
+        read_only_fields = ('id', 'competition', 'team', 'team_participant_list',
+                            'created_at', 'updated_at')
 
 
 class MatchSerializer(serializers.ModelSerializer):
@@ -254,6 +266,42 @@ class MatchSerializer(serializers.ModelSerializer):
         }
 
 
+class TeampParticipantSimpleInfoSerializer(serializers.ModelSerializer):
+    team = CompetitionTeamSerializer(read_only=True)
+
+    class Meta:
+        model = TeamParticipantInfo
+        fields = ('id', 'team')
+
+
+class TeamMatchSerializer(serializers.ModelSerializer):
+    a_team = TeampParticipantSimpleInfoSerializer(read_only=True)
+    b_team = TeampParticipantSimpleInfoSerializer(read_only=True)
+
+    winner_id = serializers.PrimaryKeyRelatedField(
+        queryset=TeamParticipantInfo.objects.all(), write_only=True, source='winner', required=False)
+    a_team_id = serializers.PrimaryKeyRelatedField(
+        queryset=TeamParticipantInfo.objects.all(), write_only=True, source='a_team', required=False)
+    b_team_id = serializers.PrimaryKeyRelatedField(
+        queryset=TeamParticipantInfo.objects.all(), write_only=True, source='b_team', required=False)
+
+    class Meta:
+        model = TeamMatch
+        fields = ('id', 'match_round', 'match_number', 'court_number', 'description',
+                  'winner_id', 'competition', 'a_team', 'b_team', 'created_at', 'updated_at',
+                  'a_team_id', 'b_team_id', 'winner')
+        read_only_fields = ('id', 'created_at', 'updated_at')
+        extra_kwargs = {
+            'description': {'required': False, 'allow_blank': True},
+            'winner': {'required': False},
+            'a_team': {'required': False},
+            'b_team': {'required': False},
+            'match_round': {'required': False, 'allow_null': True},
+            'match_number': {'required': False, 'allow_null': True},
+            'court_number': {'required': False, 'allow_null': True},
+        }
+
+
 class SetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Set
@@ -277,7 +325,7 @@ class MatchResultSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Match
-        fields = ('id', 'match_round', 'match_number', 'court_number', 'description', 'competition',
+        fields = ('id', 'match_round', 'match_number', 'court_number', 'description', 'competition', 'team_match_game_number',
                   'winner_id', 'a_team', 'b_team', 'sets', 'total_sets', 'a_team_id', 'b_team_id', 'winner', 'has_point')
         read_only_fields = ['id']
         extra_kwargs = {
@@ -291,7 +339,6 @@ class MatchResultSerializer(serializers.ModelSerializer):
         }
 
     def get_has_point(self, obj):
-        print('has_point', obj)
         return Point.objects.filter(match=obj).exists()
 
 
@@ -321,3 +368,32 @@ class TeamCompetitionApplicationSerializer(serializers.Serializer):
 class TeamCompetitionApplySerializer(serializers.Serializer):
     applications = TeamCompetitionApplicationSerializer(many=True)
     team_id = serializers.IntegerField()
+
+
+class TeamMatchResultSerializer(serializers.ModelSerializer):
+    matches = MatchResultSerializer(many=True, read_only=True)
+    a_team = TeampParticipantSimpleInfoSerializer(read_only=True)
+    b_team = TeampParticipantSimpleInfoSerializer(read_only=True)
+
+    winner_id = serializers.PrimaryKeyRelatedField(
+        queryset=TeamParticipantInfo.objects.all(), write_only=True, source='winner', required=False)
+    a_team_id = serializers.PrimaryKeyRelatedField(
+        queryset=TeamParticipantInfo.objects.all(), write_only=True, source='a_team', required=False)
+    b_team_id = serializers.PrimaryKeyRelatedField(
+        queryset=TeamParticipantInfo.objects.all(), write_only=True, source='b_team', required=False)
+
+    class Meta:
+        model = TeamMatch
+        fields = ('id', 'match_round', 'match_number', 'court_number', 'description', 'competition',
+                  'winner_id', 'a_team', 'b_team', 'matches', 'a_team_id', 'b_team_id', 'winner',
+                  'a_team_score', 'b_team_score')
+        read_only_fields = ['id', 'competition']
+        extra_kwargs = {
+            'description': {'required': False, 'allow_blank': True},
+            'winner': {'required': False},
+            'a_team': {'required': False},
+            'b_team': {'required': False},
+            'match_round': {'required': False, 'allow_null': True},
+            'match_number': {'required': False, 'allow_null': True},
+            'court_number': {'required': False, 'allow_null': True},
+        }
