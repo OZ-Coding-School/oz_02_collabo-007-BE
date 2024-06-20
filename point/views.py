@@ -217,20 +217,22 @@ class RealtimeMyRankingView(APIView):
                         match_type__in=[tier.match_type for tier in user_tiers]
                     )
                 else:
-                    # 사용자의 티어와 매치 타입(젠더, 타입)이 일치하는지 확인
-                    match_type_filtered_tiers = []
-                    for tier in user_tiers:
-                        if tier.match_type.type == match_type_param and tier.match_type.gender == gender_param:
-                            match_type_filtered_tiers.append(tier)
+                    user_tier_ids = [tier.id for tier in user_tiers]
+                    queryset = queryset.filter(tier__in=user_tier_ids)
+                    # # 사용자의 티어와 매치 타입(젠더, 타입)이 일치하는지 확인
+                    # match_type_filtered_tiers = []
+                    # for tier in user_tiers:
+                    #     if tier.match_type.type == match_type_param and tier.match_type.gender == gender_param:
+                    #         match_type_filtered_tiers.append(tier)
 
-                    # 매치타입과 일치하는 티어가 있을 경우, 해당 티어의 매치 타입에 따라 queryset을 필터링
-                    if match_type_filtered_tiers:
-                        queryset = queryset.filter(
-                            match_type__in=[tier.match_type for tier in match_type_filtered_tiers]
-                        )
-                    # 사용자가 속한 티어와 매치되는 티어가 없을 경우, 비어 있는 쿼리셋을 반환
-                    else:
-                        queryset = queryset.none()
+                    # # 매치타입과 일치하는 티어가 있을 경우, 해당 티어의 매치 타입에 따라 queryset을 필터링
+                    # if match_type_filtered_tiers:
+                    #     queryset = queryset.filter(
+                    #         match_type__in=[tier.match_type for tier in match_type_filtered_tiers]
+                    #     )
+                    # # 사용자가 속한 티어와 매치되는 티어가 없을 경우, 비어 있는 쿼리셋을 반환
+                    # else:
+                    #     queryset = queryset.none()
 
 
             # 각 유저의 총 포인트 합산 및 내림차순 정렬 / annotate : 쿼리셋에 집계 값을 추가할 때 사용)

@@ -393,20 +393,23 @@ class UserRankingSearchView(APIView):
         
         user_tiers = user.tiers.all()
         
-        # 사용자가 속한 모든 매치 타입을 가져옴
+        # 사용자가 속한 모든 매치 타입, 티어를 가져옴
         user_match_types = [tier.match_type for tier in user_tiers]
+        user_tier_ids = [tier.id for tier in user_tiers]
         
         # 매치 타입별 쿼리셋 생성
         single_queryset = Point.objects.filter(
             expired_date__gte=current_time,
             match_type__type='single',
             match_type__in=user_match_types,
+            tier__in=user_tier_ids,
         ).values('user', 'tier').annotate(total_points=Sum('points')).order_by('-total_points')
         
         double_queryset = Point.objects.filter(
             expired_date__gte=current_time,
             match_type__type='double',
             match_type__in=user_match_types,
+            tier__in=user_tier_ids,
         ).values('user', 'tier').annotate(total_points=Sum('points')).order_by('-total_points')
         
         team_queryset = Point.objects.filter(
