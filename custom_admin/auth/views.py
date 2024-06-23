@@ -4,6 +4,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework.request import Request
 from rest_framework.response import Response
 from custom_admin.auth.serializers import AdminLoginSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class AdminLoginView(TokenObtainPairView):
@@ -48,3 +49,30 @@ class AdminLoginView(TokenObtainPairView):
                 break
 
         return response
+
+
+class AdminRefreshView(TokenObtainPairView):
+    @swagger_auto_schema(
+        operation_summary='토큰 갱신',
+        operation_description='토큰 갱신 API',
+        responses={
+            200: '토큰 갱신 완료',
+            400: 'Bad Request',
+            401: 'Unauthorized',
+            403: 'Permission Denied',
+            404: 'Not Found',
+        }
+    )
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        try:
+            token = RefreshToken(request.data.get('refresh'))
+            new_access_token = str(token.access_token)
+
+            response = Response()
+            response.data = {
+                'access': new_access_token,
+            }
+
+            return response
+        except Exception as e:
+            return Response({"error": "인증되지 않은 리프레시 토큰입니다."}, status=status.HTTP_400_BAD_REQUEST)
