@@ -1,6 +1,5 @@
 from rest_framework import viewsets, status
 from django.contrib.auth import get_user_model
-from rest_framework.decorators import action
 from users.models import CustomUser
 from custom_admin.user.serializers import UserSerializer
 from custom_admin.pagination import StandardResultsSetPagination
