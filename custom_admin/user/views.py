@@ -1,6 +1,6 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from django.contrib.auth import get_user_model
-from rest_framework.decorators import action
 from users.models import CustomUser
 from custom_admin.user.serializers import UserSerializer
 from custom_admin.pagination import StandardResultsSetPagination
@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from custom_admin.service.image_service import ImageService
+from rest_framework.decorators import action
 
 User = get_user_model()
 INITIAL_PASSWORD = '123456'
@@ -111,3 +112,20 @@ class UserViewSet(viewsets.ModelViewSet):
     )
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary='권한 변경',
+        operation_description='유저의 권한을 변경합니다.',
+        responses={200: UserSerializer, 400: 'Bad Request'}
+    )
+    @action(detail=False, methods=['post'], url_path='role', url_name='role')
+    def change_role(self, request):
+        user_id = request.data.get('user_ids')
+        role = request.data.get('role')
+        for id in user_id:
+            user = get_object_or_404(User, id=id)
+            user.is_staff = True if role == 'coach' else False
+            user.is_superuser = True if role == 'admin' else False
+            user.save()
+
+        return Response(UserSerializer(user).data, status=status.HTTP_200_OK)

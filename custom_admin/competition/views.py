@@ -14,6 +14,8 @@ from match.models import Match, TeamMatch
 from participant.models import Participant
 from participant_info.models import ParticipantInfo, TeamParticipantInfo
 from payments.models import Payment
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
 class CompetitionViewSet(viewsets.ModelViewSet):
@@ -25,6 +27,8 @@ class CompetitionViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     image_service = ImageService()
     competition_service = CompetitionService()
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -42,6 +46,7 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         }
     )
     def list(self, request, *args, **kwargs):
+        print(request)
         return super().list(request, *args, **kwargs)
 
     @swagger_auto_schema(

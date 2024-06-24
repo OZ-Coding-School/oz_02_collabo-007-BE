@@ -1,4 +1,5 @@
 from club.models import Club
+from coach.models import Coach
 from custom_admin.club.serializers import ApplicationSerializer, ClubListSerializer, ClubSerializer, MemberSerializer, TeamSerializer, User
 from custom_admin.pagination import StandardResultsSetPagination
 from drf_yasg.utils import swagger_auto_schema
@@ -6,6 +7,7 @@ from rest_framework import viewsets, status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action, permission_classes, authentication_classes
+from custom_admin.permissions import IsAdmin, IsCoach
 from custom_admin.service.club_service import ClubService
 from custom_admin.service.image_service import ImageService
 from rest_framework.response import Response
@@ -22,6 +24,8 @@ class ClubViewSet(viewsets.ModelViewSet):
         'image_url').order_by('-created_at')
     pagination_class = StandardResultsSetPagination
     image_service = ImageService()
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated or IsAdminUser or IsCoach]
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -65,6 +69,10 @@ class ClubViewSet(viewsets.ModelViewSet):
         }
     )
     def create(self, request, *args, **kwargs):
+        user = request.user
+        if user.is_staff and user.club is not None:
+            return Response({'message': '이미 관리하는 클럽이 존재합니다.'}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         club = Club.objects.create(
@@ -73,6 +81,11 @@ class ClubViewSet(viewsets.ModelViewSet):
             address=serializer.validated_data['address'],
             phone=serializer.validated_data['phone']
         )
+
+        if user.is_staff:
+            user.club = club
+            user.save()
+            Coach.objects.create(club=club, user=user)
 
         image_data = request.data.get('image_file')
         if image_data:

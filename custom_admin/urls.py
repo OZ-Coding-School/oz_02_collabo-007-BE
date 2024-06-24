@@ -8,4 +8,5 @@ urlpatterns = [
     path('admin/', include('custom_admin.competition.urls')),
     path('admin/', include('custom_admin.match.urls')),
     path('admin/', include('custom_admin.common.urls')),
+    path('admin/', include('custom_admin.auth.urls')),
 ]
