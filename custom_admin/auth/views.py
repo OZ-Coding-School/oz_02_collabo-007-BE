@@ -5,6 +5,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from custom_admin.auth.serializers import AdminLoginSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.views import APIView
 
 
 class AdminLoginView(TokenObtainPairView):
@@ -76,3 +77,37 @@ class AdminRefreshView(TokenObtainPairView):
             return response
         except Exception as e:
             return Response({"error": "인증되지 않은 리프레시 토큰입니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminMyInfoView(APIView):
+    @swagger_auto_schema(
+        operation_summary='내 정보 조회',
+        operation_description='내 정보 조회 API',
+        responses={
+            200: '내 정보 조회 완료',
+            400: 'Bad Request',
+            401: 'Unauthorized',
+            403: 'Permission Denied',
+            404: 'Not Found',
+        }
+    )
+    def get(self, request: Request, *args, **kwargs) -> Response:
+        try:
+            user = request.user
+            if not user:
+                raise Exception("로그인이 필요합니다.")
+            if not user.is_staff and not user.is_superuser:
+                raise Exception("어드민 권한이 없습니다.")
+            response = Response({
+                "id": user.id,
+                "phone": user.phone,
+                "username": user.username,
+                "role": 'coach' if user.is_staff else 'admin',
+                "club_id": user.club_id,
+                "profile": user.image_url.image_url if user.image_url else '',
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            response = Response({"message": str(e)},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        return response
